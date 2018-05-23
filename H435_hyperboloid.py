@@ -1,27 +1,12 @@
 import math
+from hyperboloid import *
 
 phi = (math.sqrt(5) + 1) / 2
-signature = [+1, -1, -1, -1]
 radius = phi ** (-1./2)
 scaling_factor = phi ** 2
 
-def match(v1, v2):
-  return abs(v1 - v2) < 10 ** (-10)
-
 def get_x0(v3d, radius):
   return math.sqrt(inner(v3d, v3d, [1, 1, 1]) + radius ** 2)
-
-def inner(v1, v2, sig=signature):
-  result = 0.0
-  for index in xrange(len(v1)):
-    result += sig[index] * v1[index] * v2[index]
-  return result
-
-def norm(v):
-  return math.sqrt(inner(v, v))
-
-def scale(v, factor):
-  return [el * factor for el in v]
 
 def normalize(v3d):
   v3d_scaled_down = scale(v3d, 1.0/ scaling_factor)
