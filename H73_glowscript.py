@@ -49,21 +49,24 @@ def space_rotation(angle, vertex):
 
 # glowscript specific
 def initialize():
-    scene.fov = 0.001 # simulate orthographic projection
+    scene.fov = 1 # simulate orthographic projection
 
-def draw_wireframe(vertices, edges):
+def draw_wireframe(vertices, edges, color=vec(1,1,1)):
     initialize()
     vertex_size = 0.2
     edge_size = vertex_size / 3
-    center_plot = [4, 0, 0]
-    vectors = [vec(v[0] - center_plot[0], v[1] - center_plot[1], v[2] - center_plot[2]) for v in vertices] # offset the center
+    center_plot = [8, 0, 0]
+    # offset the center, adjust orientation
+    vectors = [vec(v[1] - center_plot[1], v[2] - center_plot[2], - v[0] + center_plot[0]) for v in vertices]
     for v in vectors:
-        sphere(pos = v, radius = vertex_size)
+        sphere(pos = v, radius = vertex_size, color = color)
     
     for edge in edges:
-        cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size)
+        cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
+
+
 
 def get_heptagon_next_vertex(v1, v2, v3):
   ratio = 1 + 2 * cos( 2 * pi / 7)
@@ -76,7 +79,16 @@ def get_heptagon_vertices(v1, v2, v3):
     vertices.append(get_heptagon_next_vertex(vertices[-3], vertices[-2], vertices[-1]))
   return vertices
 
-def get_edges(vertices, target_inner_product):
+def extend_by_rotation(vertices):
+  rotation_angle = 2 * pi / 7
+  for i in range(6):
+    rotated_vertices = [space_rotation(rotation_angle, v) for v in vertices]
+    join(vertices, rotated_vertices)
+
+
+def get_edges(vertices, target_inner_product = None):
+  if target_inner_product == None:
+    target_inner_product = min([inner(vertices[0], vertices[i]) for i in range(1, len(vertices))])
   edges = []
   for i in range(len(vertices)):
     for j in range(i+1, len(vertices)):
@@ -96,7 +108,6 @@ def vertex_first():
   print('Angle at the vertex of the vertex first {7,3} is: ' + theta * 180 / pi)
 
 def get_vertices_face_first():
-  rotation_angle = 2 * pi / 7
   cosine = cos(2 * pi / 7)
   ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
   rsquare = (1 - cosine)/(ch2phi - 1)
@@ -111,29 +122,55 @@ def get_vertices_face_first():
   a = sqrt(rsquare + b ** 2)
   v10 = [a, b, 0]
 
-  vertices = get_heptagon_vertices(v06, v00, v01)
+  vertices = get_heptagon_vertices(v06, v00, v01) # central heptagon
   vertices = dedup(vertices)
   join(vertices, [v10])
-  join(vertices, get_heptagon_vertices(v10, v00, v01))
+  join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
-  for i in range(6):
-    rotated_vertices = [space_rotation(rotation_angle, v) for v in vertices]
-    join(vertices, rotated_vertices)
+  extend_by_rotation(vertices)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices)
+
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  extend_by_rotation(vertices)
+
   return vertices
 
-cosine = cos(2 * pi / 7)
-ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
-rsquare = (1 - cosine)/(ch2phi - 1)
-target_inner_product = ch2phi * rsquare
+def extend_edges(ratio, vertices, edges):
+  inner_prod_extended_edge = None
+  new_vertices = []
+  for edge in edges:
+    v1 = vertices[edge[0]]
+    v2 = vertices[edge[1]]
+    v1_extended = [ - (v2[index] - v1[index]) * ratio + v1[index] for index in range(len(v1))]
+    new_vertices.append(v1_extended)
+    v2_extended = [ - (v1[index] - v2[index]) * ratio + v2[index] for index in range(len(v1))]
+    new_vertices.append(v2_extended)
+    if inner_prod_extended_edge == None:
+      inner_prod_extended_edge = inner(v1_extended, v2_extended)
+  return dedup(new_vertices), inner_prod_extended_edge
 
 vertices = get_vertices_face_first()
 vertices = dedup(vertices)
-edges = get_edges(vertices, target_inner_product)
+edges = get_edges(vertices)
+
+ratio = 2/(1/sin(pi/14)-2)
+
+stellated_vertices, inner_prod_extended_edge = extend_edges(ratio, vertices, edges)
+stellated_edges = get_edges(stellated_vertices, inner_prod_extended_edge)
+
 print('Vertex count: ' + str(len(vertices)))
 print('Edge count: ' + str(len(edges)))
 
+print('Stellated vertex count: ' + str(len(stellated_vertices)))
+print('Stellated edge count: ' + str(len(stellated_edges)))
 
 
 
-draw_wireframe(vertices, edges)
 
+
+
+
+draw_wireframe(stellated_vertices, stellated_edges, vec(1,1,0))
+draw_wireframe(vertices, edges, vec(1, 1, 2))
