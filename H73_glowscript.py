@@ -51,9 +51,8 @@ def space_rotation(angle, vertex):
 def initialize():
     scene.fov = 1 # simulate orthographic projection
 
-def draw_wireframe(vertices, edges, color=vec(1,1,1)):
+def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
     initialize()
-    vertex_size = 0.2
     edge_size = vertex_size / 3
     center_plot = [8, 0, 0]
     # offset the center, adjust orientation
@@ -65,6 +64,10 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1)):
         cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
+
+
+
+
 
 
 
@@ -151,26 +154,36 @@ def extend_edges(ratio, vertices, edges):
       inner_prod_extended_edge = inner(v1_extended, v2_extended)
   return dedup(new_vertices), inner_prod_extended_edge
 
-vertices = get_vertices_face_first()
-vertices = dedup(vertices)
-edges = get_edges(vertices)
+vertices73 = get_vertices_face_first()
+vertices73 = dedup(vertices73)
+edges73 = get_edges(vertices73)
 
-ratio = 2/(1/sin(pi/14)-2)
+extend_ratio = 2/(1/sin(pi/14)-2)
 
-stellated_vertices, inner_prod_extended_edge = extend_edges(ratio, vertices, edges)
-stellated_edges = get_edges(stellated_vertices, inner_prod_extended_edge)
-
-print('Vertex count: ' + str(len(vertices)))
-print('Edge count: ' + str(len(edges)))
-
-print('Stellated vertex count: ' + str(len(stellated_vertices)))
-print('Stellated edge count: ' + str(len(stellated_edges)))
+vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
+edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
 
+vertices37 = vertices727
+edges37 = get_edges(vertices37)
+
+# print('{7, 3} vertex count: ' + str(len(vertices73)))
+# print('{7, 3} edge count: ' + str(len(edges73)))
+
+# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+# print('{7/2, 7} edge count: ' + str(len(edges727)))
+
+# print('{3, 7} vertex count: ' + str(len(vertices37)))
+# print('{3, 7} edge count: ' + str(len(edges37)))
 
 
 
 
 
-draw_wireframe(stellated_vertices, stellated_edges, vec(1,1,0))
-draw_wireframe(vertices, edges, vec(1, 1, 2))
+
+
+
+
+draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
+draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)
+draw_wireframe(vertices37, edges37, vec(1, 1, 1), 0.2)

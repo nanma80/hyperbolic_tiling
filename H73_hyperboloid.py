@@ -86,17 +86,24 @@ def extend_edges(ratio, vertices, edges):
       inner_prod_extended_edge = inner(v1_extended, v2_extended)
   return dedup(new_vertices), inner_prod_extended_edge
 
-vertices = get_vertices_face_first()
-vertices = dedup(vertices)
-edges = get_edges(vertices)
+vertices73 = get_vertices_face_first()
+vertices73 = dedup(vertices73)
+edges73 = get_edges(vertices73)
 
-ratio = 2/(1/sin(pi/14)-2)
+extend_ratio = 2/(1/sin(pi/14)-2)
 
-stellated_vertices, inner_prod_extended_edge = extend_edges(ratio, vertices, edges)
-stellated_edges = get_edges(stellated_vertices, inner_prod_extended_edge)
+vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
+edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
-print('Vertex count: ' + str(len(vertices)))
-print('Edge count: ' + str(len(edges)))
 
-print('Stellated vertex count: ' + str(len(stellated_vertices)))
-print('Stellated edge count: ' + str(len(stellated_edges)))
+vertices37 = vertices727
+edges37 = get_edges(vertices37)
+
+# print('{7, 3} vertex count: ' + str(len(vertices73)))
+# print('{7, 3} edge count: ' + str(len(edges73)))
+
+# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+# print('{7/2, 7} edge count: ' + str(len(edges727)))
+
+# print('{3, 7} vertex count: ' + str(len(vertices37)))
+# print('{3, 7} edge count: ' + str(len(edges37)))
