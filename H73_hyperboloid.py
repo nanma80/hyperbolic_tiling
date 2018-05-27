@@ -1,8 +1,6 @@
 from math import *
 from hyperboloid import *
 
-
-
 def get_heptagon_next_vertex(v1, v2, v3):
   ratio = 1 + 2 * cos( 2 * pi / 7)
   return [(v3[index] - v2[index]) * ratio + v1[index] for index in range(len(v1))]
@@ -95,7 +93,6 @@ extend_ratio = 2/(1/sin(pi/14)-2)
 vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
 edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
-
 vertices37 = vertices727
 edges37 = get_edges(vertices37)
 
@@ -107,3 +104,7 @@ edges37 = get_edges(vertices37)
 
 # print('{3, 7} vertex count: ' + str(len(vertices37)))
 # print('{3, 7} edge count: ' + str(len(edges37)))
+
+csv_write('data_73', vertices73, edges73)
+csv_write('data_727', vertices727, edges727)
+csv_write('data_37', vertices37, edges37)

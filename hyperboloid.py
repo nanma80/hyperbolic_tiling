@@ -1,4 +1,5 @@
 from math import *
+import csv
 
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
@@ -44,3 +45,19 @@ def space_rotation(angle, vertex):
   for index in range(3, len(vertex)):
     new_vertex.append(vertex[index])
   return new_vertex
+
+def csv_write_vertices(filename, vertices):
+  with open(filename + '.csv', 'wb') as csvfile:
+    writer = csv.writer(csvfile)
+    for v in vertices:
+      writer.writerow(v)
+
+def csv_write_edges(filename, vertices, edges):
+  with open(filename + '.csv', 'wb') as csvfile:
+    writer = csv.writer(csvfile)
+    for e in edges:
+      writer.writerow(vertices[e[0]] + vertices[e[1]])
+
+def csv_write(filename, vertices, edges):
+  csv_write_vertices(filename + '_vertices', vertices)
+  csv_write_edges(filename + '_edges', vertices, edges)
