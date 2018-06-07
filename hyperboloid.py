@@ -3,6 +3,7 @@ import csv
 
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
+folder = "data"
 
 def match(v1, v2):
   return abs(v1 - v2) < 10 ** (-10)
@@ -59,5 +60,5 @@ def csv_write_edges(filename, vertices, edges):
       writer.writerow(vertices[e[0]] + vertices[e[1]])
 
 def csv_write(filename, vertices, edges):
-  csv_write_vertices(filename + '_vertices', vertices)
-  csv_write_edges(filename + '_edges', vertices, edges)
+  csv_write_vertices(folder + '/' + filename + '_vertices', vertices)
+  csv_write_edges(folder + '/' + filename + '_edges', vertices, edges)
