@@ -96,3 +96,13 @@ def dual_edges_to_points(vertices, edges):
     dual_vertices.append(dual_point)
     dual_vertices.append(scale(dual_point, -1))
   return dual_vertices
+
+
+def rectify(vertices, edges):
+  output_vertices = []
+  for edge in edges:
+    v1 = vertices[edge[0]]
+    v2 = vertices[edge[1]]
+    v_mid = [(v1[index] + v2[index])/2 for index in range(len(v1))]
+    output_vertices.append(v_mid)
+  return output_vertices

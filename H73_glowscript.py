@@ -101,6 +101,15 @@ def dual_edges_to_points(vertices, edges):
   return dual_vertices
 
 
+def rectify(vertices, edges):
+  output_vertices = []
+  for edge in edges:
+    v1 = vertices[edge[0]]
+    v2 = vertices[edge[1]]
+    v_mid = [(v1[index] + v2[index])/2 for index in range(len(v1))]
+    output_vertices.append(v_mid)
+  return output_vertices
+
 
 
 # glowscript specific
@@ -121,7 +130,6 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
         cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
-
 
 
 
@@ -207,12 +215,12 @@ def get_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
   extend_by_rotation(vertices)
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices)
 
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices)
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  extend_by_rotation(vertices)
 
   return vertices
 
@@ -230,26 +238,37 @@ def extend_edges(ratio, vertices, edges):
       inner_prod_extended_edge = inner(v1_extended, v2_extended)
   return dedup(new_vertices), inner_prod_extended_edge
 
+
+
+
 vertices73 = get_vertices_face_first()
 vertices73 = dedup(vertices73)
 edges73 = get_edges(vertices73)
 
-# extend_ratio = 2/(1/sin(pi/14)-2)
+extend_ratio = 2/(1/sin(pi/14)-2)
 
-# vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
-# edges727 = get_edges(vertices727, inner_prod_extended_edge727)
+vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
+edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
-# vertices37 = vertices727
-# edges37 = get_edges(vertices37)
+vertices37 = vertices727
+edges37 = get_edges(vertices37)
 
-dual_vertices73 = dedup(dual_edges_to_points(vertices73, edges73))
-dual_edges73 = get_edges_by_distance(dual_vertices73, None)
+rectified_vertices73 = rectify(vertices73, edges73)
+rectified_edges73 = get_edges(rectified_vertices73)
+
+rectified_vertices37 = rectify(vertices37, edges37)
+rectified_edges37 = get_edges(rectified_vertices37)
 
 
 
 
-draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
 
+
+
+draw_wireframe(rectified_vertices73, rectified_edges73, vec(1, 1, 1), 0.2)
+draw_wireframe(rectified_vertices37, rectified_edges37, vec(1, 1, 1), 0.2)
+
+# draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
 # draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)

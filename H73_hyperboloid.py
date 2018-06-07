@@ -97,6 +97,9 @@ def extend_edges(ratio, vertices, edges):
       inner_prod_extended_edge = inner(v1_extended, v2_extended)
   return dedup(new_vertices), inner_prod_extended_edge
 
+
+
+
 vertices73 = get_vertices_face_first()
 vertices73 = dedup(vertices73)
 edges73 = get_edges(vertices73)
@@ -109,11 +112,32 @@ edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 vertices37 = vertices727
 edges37 = get_edges(vertices37)
 
+rectified_vertices73 = rectify(vertices73, edges73)
+rectified_edges73 = get_edges(rectified_vertices73)
+
+rectified_vertices37 = rectify(vertices37, edges37)
+rectified_edges37 = get_edges(rectified_vertices37)
+
+
 # dual_vertices73 = dedup(dual_edges_to_points(vertices73, edges73))
 # dual_edges73 = get_edges_by_distance(dual_vertices73, None)
 
+# dual_rectified_vertices73 = dedup(dual_edges_to_points(rectified_vertices73, rectified_edges73))
+# dual_rectified_edges73 = get_edges_by_distance(dual_rectified_vertices73, None)
+
+
 # print('Dual {7, 3} vertex count: ' + str(len(dual_vertices73)))
 # print('Dual {7, 3} edge count: ' + str(len(dual_edges73)))
+
+print('r{7, 3} vertex count: ' + str(len(rectified_vertices73)))
+print('r{7, 3} edge count: ' + str(len(rectified_edges73)))
+
+print('r{3, 7} vertex count: ' + str(len(rectified_vertices37)))
+print('r{3, 7} edge count: ' + str(len(rectified_edges37)))
+
+print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
+print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
+
 
 print('{7, 3} vertex count: ' + str(len(vertices73)))
 print('{7, 3} edge count: ' + str(len(edges73)))
