@@ -96,15 +96,15 @@ edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 vertices37 = vertices727
 edges37 = get_edges(vertices37)
 
-# print('{7, 3} vertex count: ' + str(len(vertices73)))
-# print('{7, 3} edge count: ' + str(len(edges73)))
+print('{7, 3} vertex count: ' + str(len(vertices73)))
+print('{7, 3} edge count: ' + str(len(edges73)))
 
-# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
-# print('{7/2, 7} edge count: ' + str(len(edges727)))
+print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+print('{7/2, 7} edge count: ' + str(len(edges727)))
 
-# print('{3, 7} vertex count: ' + str(len(vertices37)))
-# print('{3, 7} edge count: ' + str(len(edges37)))
+print('{3, 7} vertex count: ' + str(len(vertices37)))
+print('{3, 7} edge count: ' + str(len(edges37)))
 
-csv_write('data_73', vertices73, edges73)
-csv_write('data_727', vertices727, edges727)
-csv_write('data_37', vertices37, edges37)
+csv_write('data/data_73', vertices73, edges73)
+csv_write('data/data_727', vertices727, edges727)
+csv_write('data/data_37', vertices37, edges37)
