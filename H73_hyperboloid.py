@@ -19,7 +19,7 @@ def extend_by_rotation(vertices):
     join(vertices, rotated_vertices)
 
 
-def get_edges(vertices, target_inner_product = None):
+def get_edges(vertices, target_inner_product = None, dual = False):
   if target_inner_product == None:
     target_inner_product = min([inner(vertices[0], vertices[i]) for i in range(1, len(vertices))])
   edges = []
@@ -29,6 +29,19 @@ def get_edges(vertices, target_inner_product = None):
       if abs(inner_prod - target_inner_product) < 0.01:
         edges.append([i, j])
   return edges
+
+def get_edges_by_distance(vertices, target_distance = None):
+  if target_distance == None:
+    target_distance = min([distance_square(vertices[0], vertices[i]) for i in range(1, len(vertices))])
+  print(target_distance)
+  edges = []
+  for i in range(len(vertices)):
+    for j in range(i+1, len(vertices)):
+      each_distance_square = distance_square(vertices[i], vertices[j])
+      if abs(each_distance_square - target_distance) < 0.01:
+        edges.append([i, j])
+  return edges
+
 
 def vertex_first():
   ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
@@ -95,6 +108,12 @@ edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
 vertices37 = vertices727
 edges37 = get_edges(vertices37)
+
+# dual_vertices73 = dedup(dual_edges_to_points(vertices73, edges73))
+# dual_edges73 = get_edges_by_distance(dual_vertices73, None)
+
+# print('Dual {7, 3} vertex count: ' + str(len(dual_vertices73)))
+# print('Dual {7, 3} edge count: ' + str(len(dual_edges73)))
 
 print('{7, 3} vertex count: ' + str(len(vertices73)))
 print('{7, 3} edge count: ' + str(len(edges73)))

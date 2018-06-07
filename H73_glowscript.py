@@ -1,11 +1,22 @@
 GlowScript 2.7 VPython
 
 # hyperboloid.py
+
+
+
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
+folder = "data"
+
 
 def match(v1, v2):
   return abs(v1 - v2) < 10 ** (-10)
+
+
+def distance_square(v1, v2):
+  difference = [v1[index] - v2[index] for index in range(len(v1))]
+  return inner(difference, difference)
+
 
 def inner(v1, v2, sig=hyperbolic_signature):
   result = 0.0
@@ -13,11 +24,14 @@ def inner(v1, v2, sig=hyperbolic_signature):
     result += sig[index] * v1[index] * v2[index]
   return result
 
+
 def norm(v):
   return sqrt(inner(v, v))
 
+
 def scale(v, factor):
   return [el * factor for el in v]
+
 
 def join(original, vertices):
   for v in vertices:
@@ -30,21 +44,63 @@ def join(original, vertices):
       original.append(v)
   return original
 
+
 def dedup(vertices):
   output = []
   return join(output, vertices)
 
+
 def space_rotation(angle, vertex):
-  matrix = [
-    [cos(angle), -sin(angle)],
-    [sin(angle), cos(angle)]
-  ]
   new_vertex = [vertex[0]]
   new_vertex.append(vertex[1] * cos(angle) - vertex[2] * sin(angle))
   new_vertex.append(vertex[1] * sin(angle) + vertex[2] * cos(angle))
   for index in range(3, len(vertex)):
     new_vertex.append(vertex[index])
   return new_vertex
+
+
+def csv_write_vertices(filename, vertices):
+  with open(filename + '.csv', 'wb') as csvfile:
+    writer = csv.writer(csvfile)
+    for v in vertices:
+      writer.writerow(v)
+
+
+def csv_write_edges(filename, vertices, edges):
+  with open(filename + '.csv', 'wb') as csvfile:
+    writer = csv.writer(csvfile)
+    for e in edges:
+      writer.writerow(vertices[e[0]] + vertices[e[1]])
+
+
+def csv_write(filename, vertices, edges):
+  csv_write_vertices(folder + '/' + filename + '_vertices', vertices)
+  csv_write_edges(folder + '/' + filename + '_edges', vertices, edges)
+
+
+def cross(a, b):
+  c = [a[1]*b[2] - a[2]*b[1],
+       a[2]*b[0] - a[0]*b[2],
+       a[0]*b[1] - a[1]*b[0]]
+  return c
+
+
+def dual_edge_to_point(edge_coordinates):
+  euclidean_cross_prod = cross(edge_coordinates[0], edge_coordinates[1])
+  euclidean_cross_prod[0] *= -1
+  return euclidean_cross_prod
+
+
+def dual_edges_to_points(vertices, edges):
+  dual_vertices = []
+  for edge in edges:
+    edge_coordinates = [vertices[index] for index in edge]
+    dual_point = dual_edge_to_point(edge_coordinates)
+    dual_vertices.append(dual_point)
+    dual_vertices.append(scale(dual_point, -1))
+  return dual_vertices
+
+
 
 
 # glowscript specific
@@ -55,6 +111,7 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
     initialize()
     edge_size = vertex_size / 3
     center_plot = [8, 0, 0]
+    center_plot = [0, 0, 0]
     # offset the center, adjust orientation
     vectors = [vec(v[1] - center_plot[1], v[2] - center_plot[2], - v[0] + center_plot[0]) for v in vertices]
     for v in vectors:
@@ -64,6 +121,12 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
         cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
+
+
+
+
+
+
 
 
 
@@ -89,7 +152,7 @@ def extend_by_rotation(vertices):
     join(vertices, rotated_vertices)
 
 
-def get_edges(vertices, target_inner_product = None):
+def get_edges(vertices, target_inner_product = None, dual = False):
   if target_inner_product == None:
     target_inner_product = min([inner(vertices[0], vertices[i]) for i in range(1, len(vertices))])
   edges = []
@@ -99,6 +162,19 @@ def get_edges(vertices, target_inner_product = None):
       if abs(inner_prod - target_inner_product) < 0.01:
         edges.append([i, j])
   return edges
+
+def get_edges_by_distance(vertices, target_distance = None):
+  if target_distance == None:
+    target_distance = min([distance_square(vertices[0], vertices[i]) for i in range(1, len(vertices))])
+  print(target_distance)
+  edges = []
+  for i in range(len(vertices)):
+    for j in range(i+1, len(vertices)):
+      each_distance_square = distance_square(vertices[i], vertices[j])
+      if abs(each_distance_square - target_distance) < 0.01:
+        edges.append([i, j])
+  return edges
+
 
 def vertex_first():
   ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
@@ -131,12 +207,12 @@ def get_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
   extend_by_rotation(vertices)
-  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices)
 
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  # extend_by_rotation(vertices)
 
   return vertices
 
@@ -158,32 +234,23 @@ vertices73 = get_vertices_face_first()
 vertices73 = dedup(vertices73)
 edges73 = get_edges(vertices73)
 
-extend_ratio = 2/(1/sin(pi/14)-2)
+# extend_ratio = 2/(1/sin(pi/14)-2)
 
-vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
-edges727 = get_edges(vertices727, inner_prod_extended_edge727)
+# vertices727, inner_prod_extended_edge727 = extend_edges(extend_ratio, vertices73, edges73)
+# edges727 = get_edges(vertices727, inner_prod_extended_edge727)
 
+# vertices37 = vertices727
+# edges37 = get_edges(vertices37)
 
-vertices37 = vertices727
-edges37 = get_edges(vertices37)
-
-# print('{7, 3} vertex count: ' + str(len(vertices73)))
-# print('{7, 3} edge count: ' + str(len(edges73)))
-
-# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
-# print('{7/2, 7} edge count: ' + str(len(edges727)))
-
-# print('{3, 7} vertex count: ' + str(len(vertices37)))
-# print('{3, 7} edge count: ' + str(len(edges37)))
+dual_vertices73 = dedup(dual_edges_to_points(vertices73, edges73))
+dual_edges73 = get_edges_by_distance(dual_vertices73, None)
 
 
 
 
+draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
 
 
-
-
-
-draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
-draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)
-draw_wireframe(vertices37, edges37, vec(1, 1, 1), 0.2)
+# draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
+# draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)
+# draw_wireframe(vertices37, edges37, vec(1, 1, 1), 0.2)
