@@ -93,6 +93,9 @@ rectified_edges73 = get_edges(rectified_vertices73)
 # dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
 # dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
 # dual_vertices73, dual_edges73 = dualize(vertices73, edges73)
+dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73, rectified_edges73)
+
+
 
 print('{7, 3} vertex count: ' + str(len(vertices73)))
 print('{7, 3} edge count: ' + str(len(edges73)))
@@ -102,11 +105,6 @@ print('{7, 3} edge count: ' + str(len(edges73)))
 
 # print('{3, 7} vertex count: ' + str(len(vertices37)))
 # print('{3, 7} edge count: ' + str(len(edges37)))
-
-# print('building dual of rectified 73')
-# dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
-# dual_rectified_edges73 = get_edges(dual_rectified_vertices73, inner_prod_dual)
-dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73, rectified_edges73)
 
 
 # dual_vertices37, dual_edges37 = dualize(vertices37, edges37)

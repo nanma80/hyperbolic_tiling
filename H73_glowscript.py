@@ -281,8 +281,8 @@ def get_73_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
   extend_by_rotation(vertices, 7)
 
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices, 7)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices, 7)
 
   # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
   # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
@@ -329,19 +329,6 @@ rectified_edges73 = get_edges(rectified_vertices73)
 # dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
 # dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
 # dual_vertices73, dual_edges73 = dualize(vertices73, edges73)
-
-print('{7, 3} vertex count: ' + str(len(vertices73)))
-print('{7, 3} edge count: ' + str(len(edges73)))
-
-# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
-# print('{7/2, 7} edge count: ' + str(len(edges727)))
-
-# print('{3, 7} vertex count: ' + str(len(vertices37)))
-# print('{3, 7} edge count: ' + str(len(edges37)))
-
-# print('building dual of rectified 73')
-# dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
-# dual_rectified_edges73 = get_edges(dual_rectified_vertices73, inner_prod_dual)
 dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73, rectified_edges73)
 
 
