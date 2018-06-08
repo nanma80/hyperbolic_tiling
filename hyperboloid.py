@@ -99,11 +99,8 @@ def dual_edges_to_points(vertices, edges):
     dual_vertices.append(scale(dual_point, -1))
     if edge[0] == zero_vertex_index or edge[1] == zero_vertex_index:
       dual_vertices_edges_around_zero.append(dual_point)
-  inner_prod = inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1])
-  # print(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[2]))
-  # print(inner(dual_vertices_edges_around_zero[1], dual_vertices_edges_around_zero[2]))
-  # print(inner(dual_vertices_edges_around_zero[0], scale(dual_vertices_edges_around_zero[1], -1)))
-  return dedup(dual_vertices), abs(inner_prod)
+  inner_prod = -abs(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1]))
+  return dedup(dual_vertices), inner_prod
 
 
 def rectify(vertices, edges):

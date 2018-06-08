@@ -106,11 +106,19 @@ def dual_edges_to_points(vertices, edges):
     dual_vertices.append(scale(dual_point, -1))
     if edge[0] == zero_vertex_index or edge[1] == zero_vertex_index:
       dual_vertices_edges_around_zero.append(dual_point)
-  inner_prod = inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1])
-  # print(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[2]))
-  # print(inner(dual_vertices_edges_around_zero[1], dual_vertices_edges_around_zero[2]))
-  # print(inner(dual_vertices_edges_around_zero[0], scale(dual_vertices_edges_around_zero[1], -1)))
-  return dedup(dual_vertices), abs(inner_prod)
+  inner_prod = -abs(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1]))
+  return dedup(dual_vertices), inner_prod
+
+
+def rectify(vertices, edges):
+  output_vertices = []
+  for edge in edges:
+    v1 = vertices[edge[0]]
+    v2 = vertices[edge[1]]
+    v_mid = [(v1[index] + v2[index])/2 for index in range(len(v1))]
+    output_vertices.append(v_mid)
+  return output_vertices
+
 
 
 def rectify(vertices, edges):
@@ -227,12 +235,12 @@ def get_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
   extend_by_rotation(vertices)
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices)
 
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices)
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  extend_by_rotation(vertices)
 
   return vertices
 
@@ -273,21 +281,24 @@ rectified_edges37 = get_edges(rectified_vertices37)
 
 
 dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
-dual_edges73 = get_edges(dual_vertices73, -inner_prod_dual)
+dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
 
 dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
-dual_rectified_edges73 = get_edges(dual_rectified_vertices73, -inner_prod_dual)
+dual_rectified_edges73 = get_edges(dual_rectified_vertices73, inner_prod_dual)
 
+dual_vertices37, inner_prod_dual = dual_edges_to_points(vertices37, edges37)
+dual_edges37 = get_edges(dual_vertices37, inner_prod_dual)
 
 
 
 
 # draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
+draw_wireframe(dual_vertices37, dual_edges37, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(rectified_vertices73, rectified_edges73, vec(1, 1, 1), 0.2)
 # draw_wireframe(rectified_vertices37, rectified_edges37, vec(1, 1, 1), 0.2)
 
-draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
+# draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
 # draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)
