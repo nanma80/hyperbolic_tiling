@@ -4,6 +4,10 @@ GlowScript 2.7 VPython
 
 
 
+
+
+
+
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
 folder = "data"
@@ -93,12 +97,20 @@ def dual_edge_to_point(edge_coordinates):
 
 def dual_edges_to_points(vertices, edges):
   dual_vertices = []
+  zero_vertex_index = 0
+  dual_vertices_edges_around_zero = []
   for edge in edges:
     edge_coordinates = [vertices[index] for index in edge]
     dual_point = dual_edge_to_point(edge_coordinates)
     dual_vertices.append(dual_point)
     dual_vertices.append(scale(dual_point, -1))
-  return dual_vertices
+    if edge[0] == zero_vertex_index or edge[1] == zero_vertex_index:
+      dual_vertices_edges_around_zero.append(dual_point)
+  inner_prod = inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1])
+  # print(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[2]))
+  # print(inner(dual_vertices_edges_around_zero[1], dual_vertices_edges_around_zero[2]))
+  # print(inner(dual_vertices_edges_around_zero[0], scale(dual_vertices_edges_around_zero[1], -1)))
+  return dedup(dual_vertices), abs(inner_prod)
 
 
 def rectify(vertices, edges):
@@ -109,6 +121,8 @@ def rectify(vertices, edges):
     v_mid = [(v1[index] + v2[index])/2 for index in range(len(v1))]
     output_vertices.append(v_mid)
   return output_vertices
+
+
 
 
 
@@ -130,7 +144,6 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
         cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
-
 
 
 
@@ -174,7 +187,6 @@ def get_edges(vertices, target_inner_product = None, dual = False):
 def get_edges_by_distance(vertices, target_distance = None):
   if target_distance == None:
     target_distance = min([distance_square(vertices[0], vertices[i]) for i in range(1, len(vertices))])
-  print(target_distance)
   edges = []
   for i in range(len(vertices)):
     for j in range(i+1, len(vertices)):
@@ -215,12 +227,12 @@ def get_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
   extend_by_rotation(vertices)
-  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices)
 
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  # extend_by_rotation(vertices)
 
   return vertices
 
@@ -260,15 +272,22 @@ rectified_vertices37 = rectify(vertices37, edges37)
 rectified_edges37 = get_edges(rectified_vertices37)
 
 
+dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
+dual_edges73 = get_edges(dual_vertices73, -inner_prod_dual)
+
+dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
+dual_rectified_edges73 = get_edges(dual_rectified_vertices73, -inner_prod_dual)
 
 
 
 
 
-draw_wireframe(rectified_vertices73, rectified_edges73, vec(1, 1, 1), 0.2)
-draw_wireframe(rectified_vertices37, rectified_edges37, vec(1, 1, 1), 0.2)
+# draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
 
-# draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
+# draw_wireframe(rectified_vertices73, rectified_edges73, vec(1, 1, 1), 0.2)
+# draw_wireframe(rectified_vertices37, rectified_edges37, vec(1, 1, 1), 0.2)
+
+draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
 # draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)

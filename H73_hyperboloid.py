@@ -33,7 +33,6 @@ def get_edges(vertices, target_inner_product = None, dual = False):
 def get_edges_by_distance(vertices, target_distance = None):
   if target_distance == None:
     target_distance = min([distance_square(vertices[0], vertices[i]) for i in range(1, len(vertices))])
-  print(target_distance)
   edges = []
   for i in range(len(vertices)):
     for j in range(i+1, len(vertices)):
@@ -74,12 +73,12 @@ def get_vertices_face_first():
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
 
   extend_by_rotation(vertices)
-  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices)
 
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  # extend_by_rotation(vertices)
 
   return vertices
 
@@ -119,21 +118,21 @@ rectified_vertices37 = rectify(vertices37, edges37)
 rectified_edges37 = get_edges(rectified_vertices37)
 
 
-# dual_vertices73 = dedup(dual_edges_to_points(vertices73, edges73))
-# dual_edges73 = get_edges_by_distance(dual_vertices73, None)
+dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
+dual_edges73 = get_edges(dual_vertices73, -inner_prod_dual)
 
-# dual_rectified_vertices73 = dedup(dual_edges_to_points(rectified_vertices73, rectified_edges73))
-# dual_rectified_edges73 = get_edges_by_distance(dual_rectified_vertices73, None)
+dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
+dual_rectified_edges73 = get_edges(dual_rectified_vertices73, -inner_prod_dual)
 
 
-# print('Dual {7, 3} vertex count: ' + str(len(dual_vertices73)))
-# print('Dual {7, 3} edge count: ' + str(len(dual_edges73)))
+print('Dual {7, 3} vertex count: ' + str(len(dual_vertices73)))
+print('Dual {7, 3} edge count: ' + str(len(dual_edges73)))
 
-print('r{7, 3} vertex count: ' + str(len(rectified_vertices73)))
-print('r{7, 3} edge count: ' + str(len(rectified_edges73)))
+# print('r{7, 3} vertex count: ' + str(len(rectified_vertices73)))
+# print('r{7, 3} edge count: ' + str(len(rectified_edges73)))
 
-print('r{3, 7} vertex count: ' + str(len(rectified_vertices37)))
-print('r{3, 7} edge count: ' + str(len(rectified_edges37)))
+# print('r{3, 7} vertex count: ' + str(len(rectified_vertices37)))
+# print('r{3, 7} edge count: ' + str(len(rectified_edges37)))
 
 print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
 print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
@@ -142,12 +141,12 @@ print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
 print('{7, 3} vertex count: ' + str(len(vertices73)))
 print('{7, 3} edge count: ' + str(len(edges73)))
 
-print('{7/2, 7} vertex count: ' + str(len(vertices727)))
-print('{7/2, 7} edge count: ' + str(len(edges727)))
+# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+# print('{7/2, 7} edge count: ' + str(len(edges727)))
 
-print('{3, 7} vertex count: ' + str(len(vertices37)))
-print('{3, 7} edge count: ' + str(len(edges37)))
+# print('{3, 7} vertex count: ' + str(len(vertices37)))
+# print('{3, 7} edge count: ' + str(len(edges37)))
 
-csv_write('data_73', vertices73, edges73)
-csv_write('data_727', vertices727, edges727)
-csv_write('data_37', vertices37, edges37)
+# csv_write('data_73', vertices73, edges73)
+# csv_write('data_727', vertices727, edges727)
+# csv_write('data_37', vertices37, edges37)

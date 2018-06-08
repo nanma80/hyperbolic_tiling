@@ -90,12 +90,20 @@ def dual_edge_to_point(edge_coordinates):
 
 def dual_edges_to_points(vertices, edges):
   dual_vertices = []
+  zero_vertex_index = 0
+  dual_vertices_edges_around_zero = []
   for edge in edges:
     edge_coordinates = [vertices[index] for index in edge]
     dual_point = dual_edge_to_point(edge_coordinates)
     dual_vertices.append(dual_point)
     dual_vertices.append(scale(dual_point, -1))
-  return dual_vertices
+    if edge[0] == zero_vertex_index or edge[1] == zero_vertex_index:
+      dual_vertices_edges_around_zero.append(dual_point)
+  inner_prod = inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1])
+  # print(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[2]))
+  # print(inner(dual_vertices_edges_around_zero[1], dual_vertices_edges_around_zero[2]))
+  # print(inner(dual_vertices_edges_around_zero[0], scale(dual_vertices_edges_around_zero[1], -1)))
+  return dedup(dual_vertices), abs(inner_prod)
 
 
 def rectify(vertices, edges):
