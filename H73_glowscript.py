@@ -7,7 +7,6 @@ GlowScript 2.7 VPython
 
 
 
-
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
 folder = "data"
@@ -133,7 +132,31 @@ def dualize(vertices, edges):
         if len(overlap_indices) > 0:
           dual_edges.append([i, j])
   dual_vertices_coordinates = [component[0] for component in dual_vertices]
-  return dual_vertices_coordinates, dual_edges
+  return dedup_polytope(dual_vertices_coordinates, dual_edges)
+
+
+def dedup_polytope(vertices, edges):
+  mapping_vertices = {}
+  new_vertices = []
+  for v_index, v in enumerate(vertices):
+    matched = False
+    for vo_index, vo in enumerate(new_vertices):
+      if match(inner(v, vo), inner(v, v)):
+        matched = True
+        break
+    if matched:
+      mapping_vertices[v_index] = vo_index
+    else:
+      new_index = len(new_vertices)
+      new_vertices.append(v)
+      mapping_vertices[v_index] = new_index
+  new_edges_set = set()
+  for edge in edges:
+    new_edge = [mapping_vertices[index] for index in edge]
+    sorted_edge = sorted(new_edge)
+    new_edges_set.add((sorted_edge[0], sorted_edge[1]))
+  new_edges = [list(edge_tuple) for edge_tuple in list(new_edges_set)]
+  return new_vertices, new_edges
 
 
 def rectify(vertices, edges):
@@ -176,6 +199,11 @@ def get_heptagon_vertices(v1, v2, v3):
   for index in range(4):
     vertices.append(get_heptagon_next_vertex(vertices[-3], vertices[-2], vertices[-1]))
   return vertices
+
+
+
+
+
 
 
 
@@ -297,23 +325,35 @@ rectified_edges73 = get_edges(rectified_vertices73)
 # rectified_vertices37 = rectify(vertices37, edges37)
 # rectified_edges37 = get_edges(rectified_vertices37)
 
-# print('building dual of 73')
+
 # dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
 # dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
-dual_vertices73, dual_edges73 = dualize(vertices73, edges73)
-dual_vertices37, dual_edges37 = dualize(vertices37, edges37)
+# dual_vertices73, dual_edges73 = dualize(vertices73, edges73)
 
+print('{7, 3} vertex count: ' + str(len(vertices73)))
+print('{7, 3} edge count: ' + str(len(edges73)))
+
+# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+# print('{7/2, 7} edge count: ' + str(len(edges727)))
+
+# print('{3, 7} vertex count: ' + str(len(vertices37)))
+# print('{3, 7} edge count: ' + str(len(edges37)))
+
+# print('building dual of rectified 73')
+# dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
+# dual_rectified_edges73 = get_edges(dual_rectified_vertices73, inner_prod_dual)
+dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73, rectified_edges73)
 
 
 
 
 # draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
-draw_wireframe(dual_vertices37, dual_edges37, vec(1, 1, 1), 0.2)
+# draw_wireframe(dual_vertices37, dual_edges37, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(rectified_vertices73, rectified_edges73, vec(1, 1, 1), 0.2)
 # draw_wireframe(rectified_vertices37, rectified_edges37, vec(1, 1, 1), 0.2)
 
-# draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
+draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 0.2)
 
 # draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
 # draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)

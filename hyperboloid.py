@@ -126,7 +126,31 @@ def dualize(vertices, edges):
         if len(overlap_indices) > 0:
           dual_edges.append([i, j])
   dual_vertices_coordinates = [component[0] for component in dual_vertices]
-  return dual_vertices_coordinates, dual_edges
+  return dedup_polytope(dual_vertices_coordinates, dual_edges)
+
+
+def dedup_polytope(vertices, edges):
+  mapping_vertices = {}
+  new_vertices = []
+  for v_index, v in enumerate(vertices):
+    matched = False
+    for vo_index, vo in enumerate(new_vertices):
+      if match(inner(v, vo), inner(v, v)):
+        matched = True
+        break
+    if matched:
+      mapping_vertices[v_index] = vo_index
+    else:
+      new_index = len(new_vertices)
+      new_vertices.append(v)
+      mapping_vertices[v_index] = new_index
+  new_edges_set = set()
+  for edge in edges:
+    new_edge = [mapping_vertices[index] for index in edge]
+    sorted_edge = sorted(new_edge)
+    new_edges_set.add((sorted_edge[0], sorted_edge[1]))
+  new_edges = [list(edge_tuple) for edge_tuple in list(new_edges_set)]
+  return new_vertices, new_edges
 
 
 def rectify(vertices, edges):
