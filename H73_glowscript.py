@@ -110,6 +110,32 @@ def dual_edges_to_points(vertices, edges):
   return dedup(dual_vertices), inner_prod
 
 
+def dualize(vertices, edges):
+  dual_vertices = []
+  zero_vertex_index = 0
+  dual_vertices_edges_around_zero = []
+  for edge in edges:
+    edge_coordinates = [vertices[index] for index in edge]
+    dual_point = dual_edge_to_point(edge_coordinates)
+    dual_vertices.append((dual_point, edge))
+    dual_vertices.append((scale(dual_point, -1), edge))
+    if edge[0] == zero_vertex_index or edge[1] == zero_vertex_index:
+      dual_vertices_edges_around_zero.append(dual_point)
+  target_inner_prod = - abs(inner(dual_vertices_edges_around_zero[0], dual_vertices_edges_around_zero[1]))
+  dual_edges = []
+  for i in range(len(dual_vertices)):
+    for j in range(i+1, len(dual_vertices)):
+      inner_prod = inner(dual_vertices[i][0], dual_vertices[j][0])
+      if abs(inner_prod - target_inner_prod) < 0.01:
+        edge_i = dual_vertices[i][1]
+        edge_j = dual_vertices[j][1]
+        overlap_indices = [index for index in edge_i if index in edge_j]
+        if len(overlap_indices) > 0:
+          dual_edges.append([i, j])
+  dual_vertices_coordinates = [component[0] for component in dual_vertices]
+  return dual_vertices_coordinates, dual_edges
+
+
 def rectify(vertices, edges):
   output_vertices = []
   for edge in edges:
@@ -120,15 +146,37 @@ def rectify(vertices, edges):
   return output_vertices
 
 
+def extend_by_rotation(vertices, degree):
+  rotation_angle = 2 * pi / degree
+  for i in range(degree - 1):
+    rotated_vertices = [space_rotation(rotation_angle, v) for v in vertices]
+    join(vertices, rotated_vertices)
 
-def rectify(vertices, edges):
-  output_vertices = []
-  for edge in edges:
-    v1 = vertices[edge[0]]
-    v2 = vertices[edge[1]]
-    v_mid = [(v1[index] + v2[index])/2 for index in range(len(v1))]
-    output_vertices.append(v_mid)
-  return output_vertices
+
+def get_edges(vertices, target_inner_product = None, dual = False):
+  if target_inner_product == None:
+    target_inner_product = min([inner(vertices[0], vertices[i]) for i in range(1, len(vertices))])
+  edges = []
+  for i in range(len(vertices)):
+    for j in range(i+1, len(vertices)):
+      inner_prod = inner(vertices[i], vertices[j])
+      if abs(inner_prod - target_inner_product) < 0.01:
+        edges.append([i, j])
+  return edges
+
+
+def get_heptagon_next_vertex(v1, v2, v3):
+  ratio = 1 + 2 * cos( 2 * pi / 7)
+  return [(v3[index] - v2[index]) * ratio + v1[index] for index in range(len(v1))]
+
+
+def get_heptagon_vertices(v1, v2, v3):
+  # given three vertices v1, v2, v3, generate all 7 vertices such that all vertices are on the same affine regular heptagon
+  vertices = [v1, v2, v3]
+  for index in range(4):
+    vertices.append(get_heptagon_next_vertex(vertices[-3], vertices[-2], vertices[-1]))
+  return vertices
+
 
 
 
@@ -162,36 +210,6 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
 
 
 
-
-def get_heptagon_next_vertex(v1, v2, v3):
-  ratio = 1 + 2 * cos( 2 * pi / 7)
-  return [(v3[index] - v2[index]) * ratio + v1[index] for index in range(len(v1))]
-
-def get_heptagon_vertices(v1, v2, v3):
-  # given three vertices v1, v2, v3, generate all 7 vertices such that all vertices are on the same affine regular heptagon
-  vertices = [v1, v2, v3]
-  for index in range(4):
-    vertices.append(get_heptagon_next_vertex(vertices[-3], vertices[-2], vertices[-1]))
-  return vertices
-
-def extend_by_rotation(vertices):
-  rotation_angle = 2 * pi / 7
-  for i in range(6):
-    rotated_vertices = [space_rotation(rotation_angle, v) for v in vertices]
-    join(vertices, rotated_vertices)
-
-
-def get_edges(vertices, target_inner_product = None, dual = False):
-  if target_inner_product == None:
-    target_inner_product = min([inner(vertices[0], vertices[i]) for i in range(1, len(vertices))])
-  edges = []
-  for i in range(len(vertices)):
-    for j in range(i+1, len(vertices)):
-      inner_prod = inner(vertices[i], vertices[j])
-      if abs(inner_prod - target_inner_product) < 0.01:
-        edges.append([i, j])
-  return edges
-
 def get_edges_by_distance(vertices, target_distance = None):
   if target_distance == None:
     target_distance = min([distance_square(vertices[0], vertices[i]) for i in range(1, len(vertices))])
@@ -214,7 +232,7 @@ def vertex_first():
   theta = acos(costheta)
   print('Angle at the vertex of the vertex first {7,3} is: ' + theta * 180 / pi)
 
-def get_vertices_face_first():
+def get_73_vertices_face_first():
   cosine = cos(2 * pi / 7)
   ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
   rsquare = (1 - cosine)/(ch2phi - 1)
@@ -233,14 +251,14 @@ def get_vertices_face_first():
   vertices = dedup(vertices)
   join(vertices, [v10])
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
+  extend_by_rotation(vertices, 7)
 
-  extend_by_rotation(vertices)
-  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices, 7)
 
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  extend_by_rotation(vertices)
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  # extend_by_rotation(vertices, 7)
 
   return vertices
 
@@ -261,7 +279,7 @@ def extend_edges(ratio, vertices, edges):
 
 
 
-vertices73 = get_vertices_face_first()
+vertices73 = get_73_vertices_face_first()
 vertices73 = dedup(vertices73)
 edges73 = get_edges(vertices73)
 
@@ -276,18 +294,15 @@ edges37 = get_edges(vertices37)
 rectified_vertices73 = rectify(vertices73, edges73)
 rectified_edges73 = get_edges(rectified_vertices73)
 
-rectified_vertices37 = rectify(vertices37, edges37)
-rectified_edges37 = get_edges(rectified_vertices37)
+# rectified_vertices37 = rectify(vertices37, edges37)
+# rectified_edges37 = get_edges(rectified_vertices37)
 
+# print('building dual of 73')
+# dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
+# dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
+dual_vertices73, dual_edges73 = dualize(vertices73, edges73)
+dual_vertices37, dual_edges37 = dualize(vertices37, edges37)
 
-dual_vertices73, inner_prod_dual = dual_edges_to_points(vertices73, edges73)
-dual_edges73 = get_edges(dual_vertices73, inner_prod_dual)
-
-dual_rectified_vertices73, inner_prod_dual = dual_edges_to_points(rectified_vertices73, rectified_edges73)
-dual_rectified_edges73 = get_edges(dual_rectified_vertices73, inner_prod_dual)
-
-dual_vertices37, inner_prod_dual = dual_edges_to_points(vertices37, edges37)
-dual_edges37 = get_edges(dual_vertices37, inner_prod_dual)
 
 
 
