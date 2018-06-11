@@ -276,13 +276,43 @@ def get_73_vertices_face_first():
   v10 = [a, b, 0]
 
   vertices = get_heptagon_vertices(v06, v00, v01) # central heptagon
-  vertices = dedup(vertices)
-  join(vertices, [v10])
+  # vertices = dedup(vertices)
+  # join(vertices, [v10])
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
-  extend_by_rotation(vertices, 7)
+  # extend_by_rotation(vertices, 7)
 
-  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  extend_by_rotation(vertices, 7)
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices, 7)
+
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  # extend_by_rotation(vertices, 7)
+
+  return vertices
+
+def get_73_one_face():
+  cosine = cos(2 * pi / 7)
+  ch2phi = ((8./3 * cos(pi / 7)**2) - 1)
+  rsquare = (1 - cosine)/(ch2phi - 1)
+  x0square = rsquare + 1
+  r = sqrt(rsquare)
+  x0 = sqrt(x0square)
+  v00 = [x0, 1, 0]
+  v01 = [x0, cos(2*pi/7), sin(2*pi/7)]
+  v06 = [x0, cos(2*pi/7), - sin(2*pi/7)]
+
+  b = 1 + 2 * cosine
+  a = sqrt(rsquare + b ** 2)
+  v10 = [a, b, 0]
+
+  vertices = get_heptagon_vertices(v10, v00, v01) # central heptagon
+  vertices = dedup(vertices)
+  # join(vertices, [v10])
+  # join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
+  # extend_by_rotation(vertices, 7)
+
+  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  # extend_by_rotation(vertices, 7)
 
   # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
   # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
