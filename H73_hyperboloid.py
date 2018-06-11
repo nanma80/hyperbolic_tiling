@@ -40,17 +40,15 @@ def get_73_vertices_face_first():
   v10 = [a, b, 0]
 
   vertices = get_heptagon_vertices(v06, v00, v01) # central heptagon
-  # vertices = dedup(vertices)
-  # join(vertices, [v10])
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
-  # extend_by_rotation(vertices, 7)
+  extend_by_rotation(vertices, 7)
 
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices, 7)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices, 7)
 
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices, 7)
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  extend_by_rotation(vertices, 7)
 
   return vertices
 
@@ -71,16 +69,6 @@ def get_73_one_face():
 
   vertices = get_heptagon_vertices(v10, v00, v01) # central heptagon
   vertices = dedup(vertices)
-  # join(vertices, [v10])
-  # join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
-  # extend_by_rotation(vertices, 7)
-
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices, 7)
-
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices, 7)
 
   return vertices
 
@@ -156,6 +144,10 @@ print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
 print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
 
 
+other_end_of_zeroth_vertex = [edge[1] for edge in dual_rectified_edges73 if edge[0] == 0]
+print(other_end_of_zeroth_vertex)
+print(len(other_end_of_zeroth_vertex))
+highlighted_vertices = [dual_rectified_vertices73[i] for i in other_end_of_zeroth_vertex]
 
 # csv_write('data_73', vertices73, edges73)
 # csv_write('data_727', vertices727, edges727)

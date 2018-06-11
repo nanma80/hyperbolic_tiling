@@ -210,6 +210,7 @@ def get_heptagon_vertices(v1, v2, v3):
 
 
 
+
 # glowscript specific
 def initialize():
     scene.fov = 1 # simulate orthographic projection
@@ -228,7 +229,6 @@ def draw_wireframe(vertices, edges, color=vec(1,1,1), vertex_size = 0.2):
         cylinder(pos = vectors[edge[0]], axis = vectors[edge[1]] - vectors[edge[0]], radius = edge_size, color = color)
 
 # H73_hyperboloid.py
-
 
 
 
@@ -276,17 +276,15 @@ def get_73_vertices_face_first():
   v10 = [a, b, 0]
 
   vertices = get_heptagon_vertices(v06, v00, v01) # central heptagon
-  # vertices = dedup(vertices)
-  # join(vertices, [v10])
   join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
-  # extend_by_rotation(vertices, 7)
+  extend_by_rotation(vertices, 7)
 
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices, 7)
+  join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
+  extend_by_rotation(vertices, 7)
 
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices, 7)
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
+  join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
+  extend_by_rotation(vertices, 7)
 
   return vertices
 
@@ -307,16 +305,6 @@ def get_73_one_face():
 
   vertices = get_heptagon_vertices(v10, v00, v01) # central heptagon
   vertices = dedup(vertices)
-  # join(vertices, [v10])
-  # join(vertices, get_heptagon_vertices(v10, v00, v01)) # 7 neighbors of center
-  # extend_by_rotation(vertices, 7)
-
-  # join(vertices, get_heptagon_vertices(vertices[9], vertices[8], vertices[15])) # 7 neighbors of previous
-  # extend_by_rotation(vertices, 7)
-
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[32], vertices[62])) # 7 neighbors of previous
-  # join(vertices, get_heptagon_vertices(vertices[33], vertices[34], vertices[55])) # mirror image of above
-  # extend_by_rotation(vertices, 7)
 
   return vertices
 
@@ -363,6 +351,46 @@ dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73
 
 
 
+print('{7, 3} vertex count: ' + str(len(vertices73)))
+print('{7, 3} edge count: ' + str(len(edges73)))
+
+# print('{7/2, 7} vertex count: ' + str(len(vertices727)))
+# print('{7/2, 7} edge count: ' + str(len(edges727)))
+
+# print('{3, 7} vertex count: ' + str(len(vertices37)))
+# print('{3, 7} edge count: ' + str(len(edges37)))
+
+
+# dual_vertices37, dual_edges37 = dualize(vertices37, edges37)
+
+# print('Dual {3, 7} vertex count: ' + str(len(dual_vertices37)))
+# print('Dual {3, 7} edge count: ' + str(len(dual_edges37)))
+
+
+# print('Dual {7, 3} vertex count: ' + str(len(dual_vertices73)))
+# print('Dual {7, 3} edge count: ' + str(len(dual_edges73)))
+
+# print('r{7, 3} vertex count: ' + str(len(rectified_vertices73)))
+# print('r{7, 3} edge count: ' + str(len(rectified_edges73)))
+
+# print('r{3, 7} vertex count: ' + str(len(rectified_vertices37)))
+# print('r{3, 7} edge count: ' + str(len(rectified_edges37)))
+
+print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
+print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
+
+
+other_end_of_zeroth_vertex = [edge[1] for edge in dual_rectified_edges73 if edge[0] == 0]
+print(other_end_of_zeroth_vertex)
+print(len(other_end_of_zeroth_vertex))
+highlighted_vertices = [dual_rectified_vertices73[i] for i in other_end_of_zeroth_vertex]
+
+# csv_write('data_73', vertices73, edges73)
+# csv_write('data_727', vertices727, edges727)
+# csv_write('data_37', vertices37, edges37)
+
+
+
 
 # draw_wireframe(dual_vertices73, dual_edges73, vec(1, 1, 1), 0.2)
 # draw_wireframe(dual_vertices37, dual_edges37, vec(1, 1, 1), 0.2)
@@ -375,3 +403,5 @@ draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 
 # draw_wireframe(vertices727, edges727, vec(1, 1, 0), 0.18)
 # draw_wireframe(vertices73, edges73, vec(1, 1, 1), 0.2)
 # draw_wireframe(vertices37, edges37, vec(1, 1, 1), 0.2)
+draw_wireframe(highlighted_vertices, [], vec(1, 1, 0), 0.21)
+draw_wireframe([dual_rectified_vertices73[0]], [], vec(1, 0, 0), 0.21)
