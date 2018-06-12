@@ -115,8 +115,8 @@ dual_rectified_vertices73, dual_rectified_edges73 = dualize(rectified_vertices73
 
 
 
-print('{7, 3} vertex count: ' + str(len(vertices73)))
-print('{7, 3} edge count: ' + str(len(edges73)))
+# print('{7, 3} vertex count: ' + str(len(vertices73)))
+# print('{7, 3} edge count: ' + str(len(edges73)))
 
 # print('{7/2, 7} vertex count: ' + str(len(vertices727)))
 # print('{7/2, 7} edge count: ' + str(len(edges727)))
@@ -140,15 +140,23 @@ print('{7, 3} edge count: ' + str(len(edges73)))
 # print('r{3, 7} vertex count: ' + str(len(rectified_vertices37)))
 # print('r{3, 7} edge count: ' + str(len(rectified_edges37)))
 
-print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
-print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
+# print('Dual r{7, 3} vertex count: ' + str(len(dual_rectified_vertices73)))
+# print('Dual r{7, 3} edge count: ' + str(len(dual_rectified_edges73)))
 
 
 other_end_of_zeroth_vertex = [edge[1] for edge in dual_rectified_edges73 if edge[0] == 0]
-print(other_end_of_zeroth_vertex)
-print(len(other_end_of_zeroth_vertex))
+highlighted_edges = [edge for edge in dual_rectified_edges73 if edge[0] == 0]
 highlighted_vertices = [dual_rectified_vertices73[i] for i in other_end_of_zeroth_vertex]
 
 # csv_write('data_73', vertices73, edges73)
 # csv_write('data_727', vertices727, edges727)
 # csv_write('data_37', vertices37, edges37)
+
+# print(dual_rectified_vertices73[0])
+# print(dual_rectified_vertices73[2])
+# print other_end_of_zeroth_vertex
+
+for third_index in [5, 7]:
+  highlighted_faces_vertices = get_heptagon_vertices(dual_rectified_vertices73[2], dual_rectified_vertices73[0], dual_rectified_vertices73[third_index])
+  get_edges(highlighted_faces_vertices)
+
