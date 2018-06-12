@@ -400,7 +400,7 @@ highlighted_vertices = [dual_rectified_vertices73[i] for i in other_end_of_zerot
 
 for third_index in [5, 7]:
   highlighted_faces_vertices = get_heptagon_vertices(dual_rectified_vertices73[2], dual_rectified_vertices73[0], dual_rectified_vertices73[third_index])
-  draw_wireframe(highlighted_faces_vertices, get_edges(highlighted_faces_vertices), vec(1, 1, 0), 0.21)
+  # draw_wireframe(highlighted_faces_vertices, get_edges(highlighted_faces_vertices), vec(1, 1, 0), 0.21)
 
 
 
@@ -425,5 +425,5 @@ draw_wireframe(dual_rectified_vertices73, dual_rectified_edges73, vec(1, 1, 1), 
 # draw_wireframe(vertices37, edges37, vec(1, 1, 1), 0.2)
 
 
-# draw_wireframe(highlighted_vertices, [], vec(1, 1, 0), 0.21)
-# draw_wireframe([dual_rectified_vertices73[0]], [], vec(1, 0, 0), 0.21)
+draw_wireframe([dual_rectified_vertices73[0]] + highlighted_vertices, [[0, i+1] for i in range(len(highlighted_vertices))], vec(1, 1, 0), 0.21)
+draw_wireframe([dual_rectified_vertices73[0]], [], vec(1, 0, 0), 0.22)
