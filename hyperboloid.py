@@ -1,5 +1,8 @@
 from math import *
 import csv
+import matplotlib.pyplot as plt
+import matplotlib.collections as pltcol
+
 
 phi = (sqrt(5) + 1) / 2
 hyperbolic_signature = [+1, -1, -1, -1]
@@ -193,3 +196,16 @@ def get_heptagon_vertices(v1, v2, v3):
   for index in range(4):
     vertices.append(get_heptagon_next_vertex(vertices[-3], vertices[-2], vertices[-1]))
   return vertices
+
+
+def plot_klein_model(vertices, edges):
+  vertices_klein = [[v[1]/v[0], v[2]/v[0]] for v in vertices]
+  vertices_klein_0 = [v[0] for v in vertices_klein]
+  vertices_klein_1 = [v[1] for v in vertices_klein]
+  plt.plot(vertices_klein_0, vertices_klein_1, 'o')
+  lines = [[tuple(vertices_klein[j]) for j in i] for i in edges]
+  lc = pltcol.LineCollection(lines)
+  plt.axes().add_collection(lc)
+  plt.axes().set_aspect('equal')
+  plt.show()
+
