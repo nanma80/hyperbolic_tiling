@@ -39,8 +39,14 @@ splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] 
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 shrinkFace[face_, factor_] := Map[(factor) # + (1 - factor) Total[face]/Length[face] &, face];
 shiftFace[face_, factor_] := Map[# + {Total[face][[1]], 0, 0} * factor &, face];
+splitFace[face_, n_] := Module[
+	{},
+	edgesFace1 = Reverse[getEdgesFromFace[face]];
+	splitEdges1 = Map[#[[2]]&, Map[splitEdge[#, n]&, edgesFace1], {2}];
+	Catenate[splitEdges1]
+];
 
-plotShape3D[faces_, shrinkFactor_] := Module[
+plotShape3D[shape_, faces_, shrinkFactor_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
 	color = configs[shape][[3]];
@@ -50,12 +56,19 @@ plotShape3D[faces_, shrinkFactor_] := Module[
 	shrunkFaces = Map[HNormalize[#, norm]&, shrunkFaces, {2}];
 
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
-	displayFaces = Map[getPoincare, shrunkFaces, {2}];
+	poincareFaces = Map[getPoincare, shrunkFaces, {2}];
 	(* displayFaces = Map[shiftFace[#, 0.01]&, displayFaces, {1}]; *)
+
+	splitFaces = Map[splitFace[#, splitEdgeParts]&, shrunkFaces ];
+	splitFaces = Map[HNormalize[#, norm]&, splitFaces, {2}];
+	displayFaces = Map[getPoincare, splitFaces, {2}];
+
 
 	Print["There are " <> IntegerString[Length[faces]] <> " faces."];
 
-	edges = Flatten[Map[getEdgesFromFace, shrunkFaces], 1];
+	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
+	Print["There are " <> IntegerString[Length[displayEdges]] <> " edges in total."];
+(* 	edges = Flatten[Map[getEdgesFromFace, shrunkFaces], 1];
 	(* edges = Union[allEdges , SameTest -> sameCenter]; *)
 	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
 
@@ -63,8 +76,8 @@ plotShape3D[faces_, shrinkFactor_] := Module[
 	splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
 	Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."];
 	displayEdges = Map[getPoincare, splitEdges, {2}];
-
-	vertices = Flatten[displayFaces,1];
+ *)
+	vertices = Flatten[poincareFaces,1];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
 	thickness = 0.01;
@@ -76,7 +89,7 @@ plotShape3D[faces_, shrinkFactor_] := Module[
 			{
 				Opacity[0.8], FaceForm[color], Map[Polygon, displayFaces]
 			},
-			{
+ 			{
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
@@ -98,7 +111,7 @@ exportFrame[shape_, shrinkFactor_, frameIndex_] := Module[
 
 	faces = Get[dataFileName];
 
-	graph = plotShape3D[faces, shrinkFactor];
+	graph = plotShape3D[shape, faces, shrinkFactor];
 
 	outputFolder = shape <> "_shrink_frames";
 	outputFolder = FileNameJoin[{imageFolder, outputFolder}];
@@ -170,3 +183,6 @@ For[shapeIndex = 1, shapeIndex <= Length[shapes], shapeIndex++,
 	Print[shape];
 	exportAnimation[shape];
 ]
+
+
+(* exportFrame["h_72_7", 0.8, 1]; *)
