@@ -3,8 +3,8 @@
 exportToPov = True;
 
 shapes = {
-	(* "h_7_3", *)
-	(* "h_3_7", *)
+	"h_7_3",
+	"h_3_7",
 	"h_72_7",
 	"h_7_72"
 };
@@ -74,7 +74,7 @@ plotShape3D[faces_, shrinkFactor_] := Module[
 	graph = Graphics3D[
 		{
 			{
-				Opacity[0.5], FaceForm[color], Map[Polygon, displayFaces]
+				Opacity[0.8], FaceForm[color], Map[Polygon, displayFaces]
 			},
 			{
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
@@ -145,7 +145,7 @@ exportAnimation[shape_] := Module[
 
 	
 	minShrinkFactor = 0.5;
-	frameCount = 1;
+	frameCount = 30;
 	shrinkStep = minShrinkFactor/frameCount;
 
 	epsilon = 0.00001;
