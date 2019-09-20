@@ -2,7 +2,7 @@
 
 exportToPov = True;
 highlightCenter = True;
-topView = True;
+topView = False;
 
 shapes = {
 	(* "h_7_3", *)
