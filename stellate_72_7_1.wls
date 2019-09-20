@@ -1,14 +1,12 @@
 #!/usr/bin/env wolframscript
 
 exportToPov = True;
-highlightCenter = True;
-topView = True;
 
 shapes = {
-	(* "h_7_3", *)
+	(* "h_7_3" *)
 	(* "h_3_7", *)
-	"h_72_7",
-	"h_7_72"
+	"h_72_7"
+	(* "h_7_72" *)
 };
 
 splitEdgeParts = 8;
@@ -38,54 +36,61 @@ getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
 getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
-getHyperboloid[v_] := {-v[[1]], v[[2]], v[[3]]};
 
-plotShape3D[faces_] := Module[
+plotShape3D[faces_, highlightedFace1_, highlightedFace2_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
 	color = configs[shape][[3]];
 
-	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
-	selectedFaces = faces;
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
-	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+	displayFaces = Map[getPoincare, faces, {2}];
 
-	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
+	Print["There are " <> IntegerString[Length[faces]] <> " faces."];
 
-	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
+	allEdges = Flatten[Map[getEdgesFromFace, faces], 1];
 	edges = Union[allEdges , SameTest -> sameCenter];
 	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
-	(* norm = HNorm[edges[[1]][[1]]]; *)
+	norm = HNorm[edges[[1]][[1]]];
 
-	(* splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1]; *)
-	(* splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}]; *)
-	(* Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."]; *)
-	displayEdges = Map[getHyperboloid, edges, {2}];
+	splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1];
+	splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
+	Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."];
+	displayEdges = Map[getPoincare, splitEdges, {2}];
 
 	allVertices = Flatten[displayFaces,1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
 
-	centeredFaces = Select[faces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
-	displayCenteredFaces = Map[getHyperboloid, centeredFaces, {2}];
-	displayCenteredFaces = Map[(# + {0.001, 0, 0})&, displayCenteredFaces, {2}];
+	centeredFaces1 = {highlightedFace1};
+	displayCenteredFaces1 = Map[getPoincare, centeredFaces1, {2}];
 
-	centeredEdges = Flatten[Map[getEdgesFromFace, centeredFaces], 1];
-	
+	centeredEdges1 = Flatten[Map[getEdgesFromFace, centeredFaces1], 1];
+	splitCenteredEdges1 = Flatten[ Map[splitEdge[#, splitEdgeParts]&, centeredEdges1], 1];
+	splitCenteredEdges1 = Map[HNormalize[#, norm]&, splitCenteredEdges1, {2}];
+	Print["There are " <> IntegerString[Length[splitCenteredEdges1]] <> " centered edges after split."];
+	displayCenteredEdges1 = Map[getPoincare, splitCenteredEdges1, {2}];
 
-	(* splitCenteredEdges = Map[HNormalize[#, norm]&, splitCenteredEdges, {2}]; *)
-	Print["There are " <> IntegerString[Length[centeredEdges]] <> " centered edges after split."];
-	displayCenteredEdges = Map[getHyperboloid, centeredEdges, {2}];
+	centeredVertices1 = displayCenteredFaces1[[1]];
 
-	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
+	centeredFaces2 = {highlightedFace2};
+	displayCenteredFaces2 = Map[getPoincare, centeredFaces2, {2}];
+
+	centeredEdges2 = Flatten[Map[getEdgesFromFace, centeredFaces2], 1];
+	splitCenteredEdges2 = Flatten[ Map[splitEdge[#, splitEdgeParts]&, centeredEdges2], 1];
+	splitCenteredEdges2 = Map[HNormalize[#, norm]&, splitCenteredEdges2, {2}];
+	Print["There are " <> IntegerString[Length[splitCenteredEdges2]] <> " centered edges after split."];
+	displayCenteredEdges2 = Map[getPoincare, splitCenteredEdges2, {2}];
+
+	centeredVertices2 = displayCenteredFaces2[[1]];
+
+	thickness = 0.01;
 	lighting = {{"Point", White, {10, -10, 10}}};
-	range = If[topView, 1.6, 3];
-	thickness = range / 80.0;
-	viewCenter = {-5, 0, 0};
+	range = 0.8;
 
-	elements = {
+	graph = Graphics3D[
+		{
 			{
 				Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
 			},
@@ -94,29 +99,26 @@ plotShape3D[faces_] := Module[
 			},
 			{
 				Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 2]&, vertices]
-			}
-	};
+			},
 
-	If[highlightCenter,
-		highlightColor = White;
-		elements = Union[
-			elements,
 			{
-				{
-					Opacity[1], FaceForm[highlightColor], Map[Polygon, displayCenteredFaces]
-				},
-				{
-					Opacity[1], FaceForm[highlightColor], Map[Cylinder[#, thickness * 2.2]&, displayCenteredEdges]
-				}
-			}
-		];
-	];
+				Opacity[1], FaceForm[Yellow], Map[Cylinder[#, thickness * 1.2]&, displayCenteredEdges2]
+			},
+			{
+				Opacity[1], FaceForm[Yellow], Map[Sphere[#, thickness * 2.3]&, centeredVertices2]
+			},
 
-	graph = Graphics3D[
-		elements,
-		ViewPoint -> If[topView, {10, 0, 0}, {3, -3, 3}],
-		ViewVertical -> If[topView, {0, 1, 0}, {1, 0, 0}],
-		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
+
+			{
+				Opacity[1], FaceForm[Magenta], Map[Cylinder[#, thickness * 1.1]&, displayCenteredEdges1]
+			},
+			{
+				Opacity[1], FaceForm[Magenta], Map[Sphere[#, thickness * 2.2]&, centeredVertices1]
+			}
+		},
+		ViewPoint -> {100, 0, 0},
+		ViewVertical -> {0, 0, 1},
+		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
 	graph
@@ -127,7 +129,6 @@ plotShape3D[faces_] := Module[
 
 For[shapeIndex = 1, shapeIndex <= Length[shapes], shapeIndex++,
 	shape = shapes[[shapeIndex]];
-
 	Print[shape];
 
 	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
@@ -135,9 +136,16 @@ For[shapeIndex = 1, shapeIndex <= Length[shapes], shapeIndex++,
 
 	faces = Get[dataFileName];
 
-	graph = plotShape3D[faces];
+	w0 = Root[-27 - 756*#1^2 - 2688*#1^4 + 448*#1^6 & , 2, 0];
+	r0 = Sqrt[3/(2 - 2*Sin[(3*Pi)/14])];
+	seedNewFace1 = N[Table[{w0, r0 Cos[k 4 Pi / 7], r0 Sin[k 4 Pi / 7]}, {k, 0, 6}]];
+	seedNewFace2 = N[Table[{w0, r0 Cos[k 2 Pi / 7], r0 Sin[k 2 Pi / 7]}, {k, 0, 6}]];
 
-	outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> "hyperboloid.png";
+	faces = Join[faces, { seedNewFace1, seedNewFace2 }];
+
+	graph = plotShape3D[faces, seedNewFace1, seedNewFace2];
+
+	outputFileName = "stellation_1.png";
 	imageSize = {600, 450};
 
 	imageFolder = "images";
