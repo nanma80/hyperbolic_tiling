@@ -2,7 +2,7 @@
 
 exportToPov = True;
 highlightCenter = True;
-topView = False;
+topView = True;
 
 shapes = {
 	(* "h_7_3", *)
@@ -80,10 +80,10 @@ plotShape3D[faces_] := Module[
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	thickness = 0.02;
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 1.6, 3];
-	viewCenter = {-4, 0, 0};
+	thickness = range / 80.0;
+	viewCenter = {-5, 0, 0};
 
 	elements = {
 			{
