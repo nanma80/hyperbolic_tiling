@@ -37,7 +37,7 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 generateFaces[shape_] := Module[
 	{},
 
-	nGenerations = If[shape == "h_72_7", 5, 6];
+	nGenerations = If[shape == "h_72_7", 5, If[shape == "h_3_7", 8, 6]];
 	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 
 	configs = Get["configs.wl"];
