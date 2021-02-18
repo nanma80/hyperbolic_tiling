@@ -9,7 +9,7 @@ plotFaces = False;
 exportToPov = True;
 (* highlightCenter = True; *)
 topView = True;
-convexHull = True;
+(* convexHull = True; *)
 (* plotFaces = True; *)
 
 shapes = {
@@ -44,7 +44,7 @@ Rotation[t_] :=
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 ApproxSamePoint[point1_, point2_] := Norm[N[point1 - point2]] < 0.00001;
-
+sameEdge[e1_, e2_] := sameCenter[e1, e2] && ((ApproxSamePoint[e1[[1]], e2[[1]]] && ApproxSamePoint[e1[[2]], e2[[2]]] ) || (ApproxSamePoint[e1[[1]], e2[[2]]] && ApproxSamePoint[e1[[2]], e2[[1]]] ));
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
 getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
@@ -78,7 +78,7 @@ plotShape3D[faces_] := Module[
 
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
-	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 14 &]; *)
+	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 10 &]; *)
 	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
 
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
@@ -97,14 +97,14 @@ plotShape3D[faces_] := Module[
 	displayFaces = displayStellatedFaces;
 	selectedFaces = stellatedFaces;
 
-	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
+	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces. Contributing " <> IntegerString[Length[selectedFaces] * 7 ] <> " edges before dedup."];
 
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
-	edges = Union[allEdges, SameTest -> sameCenter];
-	
+	edges = Union[allEdges, SameTest -> sameEdge];
+
 	(* normSquares = Map[HNormSquare, Flatten[edges, 1]] is always constant, no matter what ratio is *)
 
-	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
+	Print["There are " <> IntegerString[Length[edges]] <> " distinct edges in total."];
 	(* norm = HNorm[edges[[1]][[1]]]; *)
 
 	(* splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1]; *)
@@ -123,13 +123,18 @@ plotShape3D[faces_] := Module[
 	facesPerVertex = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
 	];
-	Print["Each vertex belongs to up to n faces: n = " <> IntegerString[Max[facesPerVertex]]];
+	Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
 	(* 
 		stellation level = 1: each vertex belongs to up to 3 faces
 		stellation level = 2: each vertex belongs to up to 7 faces
 		stellation level = 3: each vertex belongs to up to 8, 9, 10, (infinite?) faces
 	 *)
-
+(* 	facesPerEdge = Table[
+		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
+	];
+	always 1?
+ *)
+	
 	centeredFaces = Select[stellatedFaces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
 	displayCenteredFaces = Map[getHyperboloid, centeredFaces, {2}];
 	displayCenteredFaces = Map[(# + {0.001, 0, 0})&, displayCenteredFaces, {2}];
@@ -150,7 +155,7 @@ plotShape3D[faces_] := Module[
 
 	elements = {
 			{
-				Opacity[1], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 1/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
+				Opacity[1], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 0.00001/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
 			},
 			{
 				Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 2]&, vertices]
