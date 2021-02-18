@@ -7,8 +7,8 @@ convexHull = False;
 plotFaces = False;
 
 exportToPov = True;
-highlightCenter = True;
-(* topView = True; *)
+(* highlightCenter = True; *)
+topView = True;
 convexHull = True;
 (* plotFaces = True; *)
 
@@ -25,6 +25,7 @@ ratio = Tan[stellationLevel Pi/7]/Tan[Pi/7];
 
 splitEdgeParts = 8;
 colors = {Red, Blue, Purple};
+colorsConvexHull = {Red, Green, Orange};
 dataFolder = "data";
 
 Needs["POVRayRender`"];
@@ -69,10 +70,17 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 plotShape3D[faces_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
-	color = colors[[If[highlightCenter, 1, stellationLevel]]];
+	color = 
+		If[convexHull,
+			colorsConvexHull[[stellationLevel]],
+			colors[[stellationLevel]]
+		];
 
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
+	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 14 &]; *)
+	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
+
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 
@@ -107,6 +115,9 @@ plotShape3D[faces_] := Module[
 	(* allVertices = Flatten[displayFaces,1]; *)
 	allVertices = Flatten[displayEdges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
+	Print["Tallying the z value of vertices"];
+	Print[Sort[Tally[Map[#[[1]]&, vertices], Abs[#1 - #2]<0.00001&], (#1[[1]] > #2[[1]])& ] ];
+
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
 	facesPerVertex = Table[
@@ -133,13 +144,13 @@ plotShape3D[faces_] := Module[
 
 	rangeZoom = If[highlightCenter, Sqrt[stellationLevel], stellationLevel];
 	lighting = {{"Point", White, {10, -10, 10}}};
-	range = If[topView, 1.6, 3] * rangeZoom;
+	range = If[topView, 3, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-5, 0, 0};
 
 	elements = {
 			{
-				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
+				Opacity[1], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 1/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
 			},
 			{
 				Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 2]&, vertices]
@@ -171,7 +182,7 @@ plotShape3D[faces_] := Module[
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[topView, {10, 0, 0}, {3, -3, 3}],
+		ViewPoint -> If[topView, {1000, 0, 0}, {3, -3, 3}],
 		ViewVertical -> If[topView, {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
@@ -196,7 +207,9 @@ faces = Get[dataFileName];
 graph = plotShape3D[faces];
 
 outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
-imageSize = {600, 450};
+
+(* imageSize = {600, 450}; *)
+imageSize = {800, 600};
 
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, shape}];
