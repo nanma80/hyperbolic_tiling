@@ -3,10 +3,14 @@
 exportToPov = False;
 highlightCenter = False;
 topView = False;
+convexHull = False;
+plotFaces = False;
 
 exportToPov = True;
-(* highlightCenter = True; *)
+highlightCenter = True;
 (* topView = True; *)
+convexHull = True;
+(* plotFaces = True; *)
 
 shapes = {
 	"h_7_3"
@@ -73,14 +77,22 @@ plotShape3D[faces_] := Module[
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 
 	stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+
+	convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+	If[convexHull, stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces]];
+
 	displayStellatedFaces = Map[getHyperboloid, stellatedFaces, {2}];
-	If[!highlightCenter, displayFaces = displayStellatedFaces];
+(* 	If[!highlightCenter, 
+		displayFaces = displayStellatedFaces;
+		selectedFaces = stellatedFaces];
+ *)
+	displayFaces = displayStellatedFaces;
+	selectedFaces = stellatedFaces;
 
 	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
 
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
 	edges = Union[allEdges, SameTest -> sameCenter];
-	If[!highlightCenter, edges = Map[scale[#, ratio]&, edges]];
 	
 	(* normSquares = Map[HNormSquare, Flatten[edges, 1]] is always constant, no matter what ratio is *)
 
@@ -127,9 +139,6 @@ plotShape3D[faces_] := Module[
 
 	elements = {
 			{
-				Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
-			},
-			{
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
@@ -137,13 +146,21 @@ plotShape3D[faces_] := Module[
 			}
 	};
 
+	If[plotFaces,
+		AppendTo[elements, 
+			{
+				Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
+			}
+		]
+	];
+
 	If[highlightCenter,
 		highlightColor = White;
 		elements = Union[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[highlightColor], Map[Polygon, displayCenteredFaces]
+					Opacity[If[plotFaces, 1, 0]], FaceForm[highlightColor], Map[Polygon, displayCenteredFaces]
 				},
 				{
 					Opacity[1], FaceForm[highlightColor], Map[Cylinder[#, thickness * 2.2]&, displayCenteredEdges]
@@ -169,6 +186,7 @@ shapeIndex = 1;
 shape = shapes[[shapeIndex]];
 
 Print[shape];
+Print[stellationLevel];
 
 dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 Print["Reading data for " <> shape <> " from " <> dataFileName];
@@ -177,7 +195,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
+outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
 imageSize = {600, 450};
 
 imageFolder = "images";
