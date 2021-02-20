@@ -5,12 +5,14 @@ highlightCenter = False;
 topView = False;
 convexHull = False;
 plotFaces = False;
+highlightCommonFaces = False;
 
 exportToPov = True;
 (* highlightCenter = True; *)
-topView = True;
-(* convexHull = True; *)
+(* topView = True; *)
+convexHull = True;
 (* plotFaces = True; *)
+(* highlightCommonFaces = True; *)
 
 shapes = {
 	"h_7_3"
@@ -78,8 +80,9 @@ plotShape3D[faces_] := Module[
 
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
-	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 10 &]; *)
+	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 13 &]; *)
 	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
+	(* selectedFaces = Union[selectedFaces, -selectedFaces]; *)
 
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
@@ -115,8 +118,8 @@ plotShape3D[faces_] := Module[
 	(* allVertices = Flatten[displayFaces,1]; *)
 	allVertices = Flatten[displayEdges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
-	Print["Tallying the z value of vertices"];
-	Print[Sort[Tally[Map[#[[1]]&, vertices], Abs[#1 - #2]<0.00001&], (#1[[1]] > #2[[1]])& ] ];
+(* 	Print["Tallying the z value of vertices"];
+	Print[Sort[Tally[Map[#[[1]]&, vertices], Abs[#1 - #2]<0.00001&], (#1[[1]] > #2[[1]])& ] ]; *)
 
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
@@ -124,53 +127,60 @@ plotShape3D[faces_] := Module[
 		Length[Select[displayStellatedFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
 	];
 	Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
+	topVertexIndices = Select[Range[Length[facesPerVertex]], facesPerVertex[[#]]==Max[facesPerVertex]&];
+
+	topVertices = vertices[[topVertexIndices]];
+	topVertex = SortBy[topVertices, Norm[# - {3, -3, 3}]&][[1]];
+
 	(* 
 		stellation level = 1: each vertex belongs to up to 3 faces
 		stellation level = 2: each vertex belongs to up to 7 faces
 		stellation level = 3: each vertex belongs to up to 8, 9, 10, (infinite?) faces
 	 *)
+
 (* 	facesPerEdge = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
 	];
-	always 1?
+	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
  *)
-	
+	(* 
+	facesPerEdge can be 2 for the {7/3} polyhedron. Appears to be always 1 for its convex hull. If we include -faces, {7/3} still has 2 faces per edge. The convex hull also has 2 faces per edge
+	*)
+
 	centeredFaces = Select[stellatedFaces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
-	displayCenteredFaces = Map[getHyperboloid, centeredFaces, {2}];
+	
+	displayCenteredFaces = If[highlightCommonFaces,
+		Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&],
+		Map[getHyperboloid, centeredFaces, {2}]
+	];
+
 	displayCenteredFaces = Map[(# + {0.001, 0, 0})&, displayCenteredFaces, {2}];
 
-	centeredEdges = Flatten[Map[getEdgesFromFace, centeredFaces], 1];
+	displayCenteredEdges = Flatten[Map[getEdgesFromFace, displayCenteredFaces], 1];
 
 	(* splitCenteredEdges = Map[HNormalize[#, norm]&, splitCenteredEdges, {2}]; *)
-	Print["There are " <> IntegerString[Length[centeredEdges]] <> " centered edges after split."];
-	displayCenteredEdges = Map[getHyperboloid, centeredEdges, {2}];
+	Print["There are " <> IntegerString[Length[displayCenteredEdges]] <> " centered edges after split."];
+	(* displayCenteredEdges = Map[getHyperboloid, centeredEdges, {2}]; *)
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	rangeZoom = If[highlightCenter, Sqrt[stellationLevel], stellationLevel];
+	rangeZoom = If[highlightCenter, Sqrt[stellationLevel], stellationLevel] * If[highlightCommonFaces, 1.5, 1];
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 3, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-5, 0, 0};
 
-	elements = {
+	elements = 
+		{
 			{
-				Opacity[1], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 0.00001/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
+				Opacity[If[highlightCommonFaces, 0.25, 1]], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 0.00001/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
 			},
 			{
 				Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 2]&, vertices]
 			}
-	};
+		};
 
-	If[plotFaces,
-		AppendTo[elements, 
-			{
-				Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
-			}
-		]
-	];
-
-	If[highlightCenter,
+	If[highlightCenter || highlightCommonFaces,
 		highlightColor = White;
 		elements = Union[
 			elements,
@@ -211,7 +221,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
+outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
 
 (* imageSize = {600, 450}; *)
 imageSize = {800, 600};
