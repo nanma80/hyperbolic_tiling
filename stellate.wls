@@ -43,6 +43,13 @@ Rotation[t_] :=
   {0, -Sin[t], Cos[t]}
 };
 
+Boost[t_] :=
+{
+  {Cosh[t], Sinh[t], 0},
+  {Sinh[t], Cosh[t], 0},
+  {0,       0,       1}
+};
+
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 ApproxSamePoint[point1_, point2_] := Norm[N[point1 - point2]] < 0.00001;
@@ -80,9 +87,12 @@ plotShape3D[faces_] := Module[
 
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
-	(* selectedFaces = Select[faces, Norm[Mean[#][[{2, 3}]]] < 13 &]; *)
+	(* selectedFaces = Select[selectedFaces, Norm[Mean[#][[{2, 3}]]] < 8 &]; *)
 	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
 	(* selectedFaces = Union[selectedFaces, -selectedFaces]; *)
+	(* panning = 0; *)
+	(* selectedFaces = Map[Boost[panning].# &, selectedFaces, {2}]; *)
+
 
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
@@ -164,7 +174,7 @@ plotShape3D[faces_] := Module[
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	rangeZoom = If[highlightCenter, Sqrt[stellationLevel], stellationLevel] * If[highlightCommonFaces, 1.5, 1];
+	rangeZoom = stellationLevel * If[highlightCommonFaces, 1.5, 1];
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 3, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
@@ -176,7 +186,7 @@ plotShape3D[faces_] := Module[
 				Opacity[If[highlightCommonFaces, 0.25, 1]], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 0.00001/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 2]&, vertices]
+				Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 4]&, vertices]
 			}
 		};
 
@@ -242,3 +252,23 @@ If[exportToPov,
 ];
 
 (* ] *)
+
+(* 
+stellationLevel == 3: 455 vertices. 
+
+Select[vertices, #[[1]]<0&]//Length
+322
+
+Select[vertices, #[[1]]>0&]//Length
+133
+
+Union[vertices, -vertices, SameTest -> ApproxSamePoint]
+644
+
+Union[Select[vertices, #[[1]]<0&], -Select[vertices, #[[1]]>0&], SameTest -> ApproxSamePoint]//Length
+
+322
+
+133 vertices with #[[1]] > 0 are antipodes of a subset of vertices with #[[1]] < 0
+This is true even if we boost the shape. Boost keeps the antipodal relation.
+*)
