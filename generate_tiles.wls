@@ -3,10 +3,10 @@
 (* nGenerations = 6; *)
 
 shapes = {
-	"h_7_3",
-	"h_3_7",
+	"h_7_3"
+(* 	"h_3_7",
 	"h_72_7",
-	"h_7_72"
+	"h_7_72" *)
 };
 
 
@@ -37,7 +37,7 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 generateFaces[shape_] := Module[
 	{},
 
-	nGenerations = If[shape == "h_72_7", 5, If[shape == "h_3_7", 8, 7]];
+	nGenerations = If[shape == "h_72_7", 5, If[shape == "h_3_7", 8, 8]];
 	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 
 	configs = Get["configs.wl"];
@@ -90,8 +90,13 @@ For[shapeIndex = 1, shapeIndex <= Length[shapes], shapeIndex++,
 	Print["There are " <> IntegerString[Length[faces]] <> " faces."];
 	
 	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
+	jsonDataFileName = FileNameJoin[{dataFolder, shape <> ".json"}];
 
 	If[FileExistsQ[dataFileName], DeleteFile[dataFileName]];
 	Save[dataFileName, faces];
 	Print["Saved faces to " <> dataFileName];
+
+	If[FileExistsQ[jsonDataFileName], DeleteFile[jsonDataFileName]];
+	Export[jsonDataFileName, faces, "RawJSON", Compact -> True];
+	Print["Saved faces to " <> jsonDataFileName];
 ]

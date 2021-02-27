@@ -271,4 +271,45 @@ Union[Select[vertices, #[[1]]<0&], -Select[vertices, #[[1]]>0&], SameTest -> App
 
 133 vertices with #[[1]] > 0 are antipodes of a subset of vertices with #[[1]] < 0
 This is true even if we boost the shape. Boost keeps the antipodal relation.
+
+stellationLevel == 3: 1281 edges.
+
+epsilon = 0.000001;
+Select[displayEdges, Abs[Mean[#][[1]]] < epsilon & ]//Length
+42
+
+Select[displayEdges, Mean[#][[1]] < -epsilon & ]//Length
+847
+
+Select[displayEdges, Mean[#][[1]] > epsilon & ]//Length
+392
+
+pnunion = Union[displayEdges, -displayEdges, SameTest -> sameEdge];
+pnunion//Length
+1736
+
+Select[pnunion, Abs[Mean[#][[1]]] < epsilon & ]//Length
+42
+
+Select[pnunion, Mean[#][[1]] < -epsilon & ]//Length
+847
+
+Select[pnunion, Mean[#][[1]] > epsilon & ]//Length
+847
+
+Need to include edges around zero from both side, to be complete
+negaUnion = Union[Select[displayEdges, Mean[#][[1]] < epsilon & ], -Select[displayEdges, Mean[#][[1]] > -epsilon & ], SameTest -> sameEdge];
+negaUnion//Length
+889
+
+Select[negaUnion, Abs[Mean[#][[1]]] < epsilon & ]//Length
+42
+
+Select[negaUnion, Mean[#][[1]] < -epsilon & ]//Length
+847
+
+Select[negaUnion, Mean[#][[1]] > epsilon & ]//Length
+0
+
+So, the edges strictly positive is antipodal to some edges strictly negative. Some edges around zero.
 *)
