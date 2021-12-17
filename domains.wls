@@ -5,8 +5,10 @@ highlightCenter = True;
 topView = True;
 plotPoints = 40;
 maxRecursion = 2;
+sphere = False;
 doubleSheet = False;
-mirror3Generation = 2;
+If[sphere, doubleSheet = True];
+mirror3Generation = 3;
 
 splitEdgeParts = 8;
 
@@ -74,11 +76,12 @@ allMirrors = Select[allMirrors, #.arbitraryVector >= 0 &];
 Print[Length[allMirrors]];
 
 
-plotRange = 2;
+plotRange = If[sphere, 1.1, 2];
 opacity = 1;
-zOffset = If[doubleSheet, -plotRange - 0.9, 0];
+zOffset = If[sphere, 0, If[doubleSheet, -plotRange - 0.9, 0]];
 
-graph = ContourPlot3D[-x^2 - y^2 + z^2 == If[doubleSheet, 1, -1],
+graph = ContourPlot3D[
+	If[sphere, x^2 + y^2 + z^2, -x^2 - y^2 + z^2] == If[doubleSheet, 1, -1],
 	{x, -plotRange, plotRange}, 
 	{y, -plotRange, plotRange}, 
 	{z, -plotRange + zOffset, plotRange + zOffset},
@@ -88,14 +91,14 @@ graph = ContourPlot3D[-x^2 - y^2 + z^2 == If[doubleSheet, 1, -1],
   MaxRecursion -> maxRecursion,
 	MeshFunctions -> {0 &}, 
 	MeshShading -> { { Lighter[Blue] , Opacity[opacity] } },
-	RegionBoundaryStyle -> None,
+	(* RegionBoundaryStyle -> None, *)
 	RegionFunction -> Function[
                       {x, y, z},
                       Product[HInner[{z, x, y}, allMirrors[[k]]], {k, 1, Length[allMirrors]}] < 0
                   	]
 ];
 
-outputFileName = If[doubleSheet, "double_", "single_"] <> "fundamental_domain_" <> IntegerString[mirror3Generation] <> "_" <> IntegerString[plotPoints] <> "_" <> IntegerString[maxRecursion] <> ".png";
+outputFileName = If[sphere, "sphere_", If[doubleSheet, "double_", "single_"]] <> "fundamental_domain_" <> IntegerString[mirror3Generation] <> "_" <> IntegerString[plotPoints] <> "_" <> IntegerString[maxRecursion] <> ".png";
 imageSize = {600, 450};
 
 imageFolder = "images";
