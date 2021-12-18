@@ -8,7 +8,7 @@ maxRecursion = 2;
 sphere = False;
 doubleSheet = False;
 If[sphere, doubleSheet = True];
-mirror3Generation = 3;
+mirror3Generation = 2;
 
 splitEdgeParts = 8;
 
@@ -58,14 +58,16 @@ For[j = 1, j <= mirror3Generation, j++,
 	newMirrors3 = Map[HReflect[#, mirrors[[3]]]&, allMirrors];
 	updatedMirrors = Union[allMirrors, newMirrors3, SameTest -> (Round[HNormalize[#1, 1], epsilon] == Round[HNormalize[#2, 1], epsilon]&)];
 	Print[Map[Length, {allMirrors, newMirrors3, updatedMirrors}]];
-	allMirrors = updatedMirrors//Simplify;
+	(* allMirrors = updatedMirrors//Simplify; *)
+	allMirrors = updatedMirrors//N;
 
 	For[i = 1, i <= 7, i++,
 		newMirrors1 = Map[HReflect[#, mirrors[[1]]]&, allMirrors];
 		newMirrors2 = Map[HReflect[#, mirrors[[2]]]&, allMirrors];
 		updatedMirrors = Union[allMirrors, newMirrors1, newMirrors2, SameTest -> (Round[HNormalize[#1, 1], epsilon] == Round[HNormalize[#2, 1], epsilon]&)];
 		Print[Map[Length, {allMirrors, newMirrors1, newMirrors2, updatedMirrors}]];
-		allMirrors = updatedMirrors//Simplify;
+		(* allMirrors = updatedMirrors//Simplify; *)
+		allMirrors = updatedMirrors//N;
 	];
 ];
 
@@ -91,12 +93,13 @@ graph = ContourPlot3D[
   MaxRecursion -> maxRecursion,
 	MeshFunctions -> {0 &}, 
 	MeshShading -> { { Lighter[Blue] , Opacity[opacity] } },
-	(* RegionBoundaryStyle -> None, *)
+	RegionBoundaryStyle -> None,
 	RegionFunction -> Function[
                       {x, y, z},
                       Product[HInner[{z, x, y}, allMirrors[[k]]], {k, 1, Length[allMirrors]}] < 0
                   	]
 ];
+Print["graph is defined"];
 
 outputFileName = If[sphere, "sphere_", If[doubleSheet, "double_", "single_"]] <> "fundamental_domain_" <> IntegerString[mirror3Generation] <> "_" <> IntegerString[plotPoints] <> "_" <> IntegerString[maxRecursion] <> ".png";
 imageSize = {600, 450};
