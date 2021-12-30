@@ -146,10 +146,11 @@ plotShape3D[faces_] := Module[
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
-	displayFaces = Map[getKlein, selectedFaces, {2}];
 	If[stellateFaces, 
-		displayFaces = Map[scaleFace[#, ratio, stellationLevel]&, displayFaces]
+		selectedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces]
 	];
+
+	displayFaces = Map[getKlein, selectedFaces, {2}];
 
 	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
 
@@ -161,9 +162,12 @@ plotShape3D[faces_] := Module[
 	(* splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1]; *)
 	(* splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}]; *)
 	(* Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."]; *)
-	displayEdges = Map[getKlein, edges, {2}];
-	displayEdges = Map[scale[#, ratio] &, displayEdges];
 
+	If[!stellateFaces,
+		edges = Map[scale[#, ratio] &, edges];
+	];
+	displayEdges = Map[getKlein, edges, {2}];
+	
 	allVertices = Flatten[displayEdges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
@@ -184,7 +188,7 @@ plotShape3D[faces_] := Module[
 
 	rangeZoom = Sqrt[ratio];
 	lighting = {{"Point", White, {10, -10, 10}}};
-	range = 0.8 * rangeZoom;
+	range = 0.65 * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-5, 0, 0};
 
