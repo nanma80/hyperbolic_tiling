@@ -236,7 +236,7 @@ faces = generateFaces[p, q];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> If[stellationLevel > 1, "_" <> IntegerString[stellationLevel], ""] <> "_" <> IntegerString[nGenerations] <> ".png";
+outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
 
 imageSize = {600, 450};
 

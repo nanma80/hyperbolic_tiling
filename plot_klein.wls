@@ -105,8 +105,6 @@ plotShape3D[faces_] := Module[
 ];
 
 
-
-
 For[shapeIndex = 1, shapeIndex <= Length[shapes], shapeIndex++,
 	shape = shapes[[shapeIndex]];
 	Print[shape];

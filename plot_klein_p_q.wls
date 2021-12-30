@@ -172,7 +172,7 @@ plotShape3D[faces_] := Module[
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
-
+	Print[Max[Map[Norm, vertices]]];
 	centeredFaces = Select[faces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
 	displayCenteredFaces = Map[getKlein, centeredFaces, {2}];
 	displayCenteredFaces = Map[(# + {0.001, 0, 0})&, displayCenteredFaces, {2}];
@@ -188,7 +188,9 @@ plotShape3D[faces_] := Module[
 
 	rangeZoom = Sqrt[ratio];
 	lighting = {{"Point", White, {10, -10, 10}}};
-	range = 0.65 * rangeZoom;
+	(* range = 0.4 * Sqrt[p] * rangeZoom; *)
+	range = Max[Map[Norm, vertices]] * 0.85;
+	Print["Plot range: " <> ToString[range]];
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-5, 0, 0};
 
@@ -242,9 +244,9 @@ faces = generateFaces[p, q];
 
 graph = plotShape3D[faces];
 
-outputFileName = "klein_" <> If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> If[stellationLevel > 1, "_" <> IntegerString[stellationLevel], ""] <> "_" <> IntegerString[nGenerations] <> ".png";
+outputFileName = "klein_" <> If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
 
-imageSize = {600, 450};
+imageSize = {4, 3} * 720/3;
 
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, shape}];
