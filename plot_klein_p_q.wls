@@ -3,7 +3,7 @@
 exportToPov = True;
 highlightCenter = False;
 topView = False;
-stellateFaces = False;
+stellateFaces = True;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
