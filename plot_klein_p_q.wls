@@ -3,7 +3,7 @@
 exportToPov = True;
 highlightCenter = False;
 topView = False;
-stellateFaces = True;
+stellateFaces = False;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -44,7 +44,7 @@ Rotation[t_] :=
   {0, Cos[t], Sin[t]},
   {0, -Sin[t], Cos[t]}
 };
-epsilon = 0.00000001;v
+epsilon = 0.00000001;
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 (* ApproxSamePoint[point1_, point2_] := Norm[N[point1 - point2]] < 0.00001; *)
@@ -52,6 +52,8 @@ ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, eps
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
+sameEdge[e1_, e2_] := sameCenter[e1, e2] && ((ApproxSamePoint[e1[[1]], e2[[1]]] && ApproxSamePoint[e1[[2]], e2[[2]]] ) || (ApproxSamePoint[e1[[1]], e2[[2]]] && ApproxSamePoint[e1[[2]], e2[[1]]] ));
+
 getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
 getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
@@ -155,7 +157,7 @@ plotShape3D[faces_] := Module[
 	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
 
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
-	edges = Union[allEdges , SameTest -> sameCenter];
+	edges = Union[allEdges , SameTest -> sameEdge];
 	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
 	(* norm = HNorm[edges[[1]][[1]]]; *)
 
@@ -170,8 +172,14 @@ plotShape3D[faces_] := Module[
 	
 	allVertices = Flatten[displayEdges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
-	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
+	verticesTally = Tally[allVertices];
+	verticesTallyCounts = Map[#[[2]]&, verticesTally];
+	tallyTally = Tally[verticesTallyCounts];
 
+	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
+	Print[Map[Length, {faces, allEdges, edges, allVertices, vertices}]];
+	Print[tallyTally];
+	
 	Print[Max[Map[Norm, vertices]]];
 	centeredFaces = Select[faces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
 	displayCenteredFaces = Map[getKlein, centeredFaces, {2}];
@@ -244,7 +252,7 @@ faces = generateFaces[p, q];
 
 graph = plotShape3D[faces];
 
-outputFileName = "klein_" <> If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
+outputFileName = "klein_" <> If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> ToString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
 
 imageSize = {4, 3} * 720/3;
 

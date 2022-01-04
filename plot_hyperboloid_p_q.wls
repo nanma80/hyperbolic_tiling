@@ -3,7 +3,7 @@
 exportToPov = True;
 highlightCenter = False;
 topView = False;
-stellateFaces = True;
+stellateFaces = False;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -52,6 +52,8 @@ ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, eps
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
+sameEdge[e1_, e2_] := sameCenter[e1, e2] && ((ApproxSamePoint[e1[[1]], e2[[1]]] && ApproxSamePoint[e1[[2]], e2[[2]]] ) || (ApproxSamePoint[e1[[1]], e2[[2]]] && ApproxSamePoint[e1[[2]], e2[[1]]] ));
+
 getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
 getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
@@ -154,7 +156,7 @@ plotShape3D[faces_] := Module[
 	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
 
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
-	edges = Union[allEdges , SameTest -> sameCenter];
+	edges = Union[allEdges , SameTest -> sameEdge];
 	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
 	(* norm = HNorm[edges[[1]][[1]]]; *)
 
@@ -164,10 +166,14 @@ plotShape3D[faces_] := Module[
 	displayEdges = Map[getHyperboloid, edges, {2}];
 	displayEdges = Map[scale[#, ratio] &, displayEdges];
 
-	allVertices = Flatten[displayEdges, 1];
+	allVertices = Round[Flatten[displayEdges, 1], epsilon];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
+	verticesTally = Tally[allVertices];
+	verticesTallyCounts = Map[#[[2]]&, verticesTally];
+	tallyTally = Tally[verticesTallyCounts];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
-
+	Print[Map[Length, {faces, allEdges, edges, allVertices, vertices}]];
+	Print[tallyTally];
 
 	centeredFaces = Select[faces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
 	displayCenteredFaces = Map[getHyperboloid, centeredFaces, {2}];
@@ -196,7 +202,7 @@ plotShape3D[faces_] := Module[
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[Purple], Map[Sphere[#, thickness * rangeZoom]&, vertices]
+				Opacity[1], FaceForm[Purple], Map[Sphere[#[[1]], thickness * rangeZoom]&, verticesTally]
 			}
 	};
 
@@ -236,7 +242,7 @@ faces = generateFaces[p, q];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
+outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> ToString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
 
 imageSize = {600, 450};
 
