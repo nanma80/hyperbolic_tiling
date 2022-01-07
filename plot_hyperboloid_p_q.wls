@@ -6,7 +6,7 @@ topView = False;
 stellateFaces = False;
 
 imageSize = {4, 3} * 720 / 3;
-risingFrameCount = 10;
+risingFrameCount = 75;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -193,7 +193,7 @@ plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	rangeZoom = Sqrt[maxRatio];
+	rangeZoom = Sqrt[maxRatio] * 1.2;
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 1.6, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
@@ -306,6 +306,16 @@ exportAnimation[] := Module[
 	Print[gifCommand];
 	Run[gifCommand];
 	Print["Saved the animation to " <> gifFolder <> "\\" <> gifFileName <> ".gif"];
+	
+  mp4Command = "ffmpeg -i " <> gifFolder <> "\\" <> gifFileName <> ".gif" 
+      <> " -movflags faststart -pix_fmt yuv420p -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" "
+      <> gifFolder <> "\\" <> gifFileName <> ".mp4";
+
+  mp4FileName = gifFolder <> "\\" <> gifFileName <> ".mp4";
+  If[FileExistsQ[mp4FileName], DeleteFile[mp4FileName]];
+  Print[mp4Command];
+  Run[mp4Command];
+  Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
 
