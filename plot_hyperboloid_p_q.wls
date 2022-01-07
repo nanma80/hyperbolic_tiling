@@ -3,7 +3,7 @@
 exportToPov = True;
 highlightCenter = False;
 topView = False;
-stellateFaces = False;
+stellateFaces = True;
 
 imageSize = {4, 3} * 720 / 3;
 risingFrameCount = 75;
@@ -72,7 +72,8 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	edges = Map[scale[#, ratio]&, getEdgesFromFace[face]];
 	edgeOrders = Table[Mod[stellationLevel * k, p]+1, {k, 0, p-1}];
 	(* edges[[edgeOrders]] *)
-	Map[#[[1]]&, edges[[edgeOrders]]]
+	(* Map[#[[1]]&, edges[[edgeOrders]]] *)
+	Flatten[edges[[edgeOrders]], 1]
 ];
 
 shapeWithParams = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[nGenerations];
@@ -154,7 +155,7 @@ plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 	If[stellateFaces, 
-		displayFaces = Map[scaleFace[#, ratio, stellationLevel]&, displayFaces]
+		displayFaces = Map[scaleFace[#, ratio, Ceiling[stellationLevel]]&, displayFaces]
 	];
 
 	(* Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."]; *)
@@ -207,7 +208,7 @@ plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[Purple], Map[Sphere[#[[1]], thickness * rangeZoom]&, verticesTally]
+				Opacity[1], FaceForm[White], Map[Sphere[#[[1]], thickness * rangeZoom]&, verticesTally]
 			}
 	};
 
@@ -283,10 +284,23 @@ exportAnimation[] := Module[
 	gifFolder = FileNameJoin[{imageFolder, shape}];
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
-	increasingStellationLevels = Table[1 + (maxStellationLevel - 1) * (1 - Cos[(frameIndex - 1)/(risingFrameCount - 1) * Pi 1.0])/2, {frameIndex, 1, risingFrameCount}];
-	stayingMaxStellationLevels = Table[maxStellationLevel, {frameIndex, 1, risingFrameCount/4, 1}];
-	stayingMinStellationLevels = Table[1, {frameIndex, 1, risingFrameCount/4, 1}];
-	stellationLevels = Join[increasingStellationLevels, stayingMaxStellationLevels, Reverse[increasingStellationLevels], stayingMinStellationLevels];
+	maxStellationLevel = 3;
+	risingFrameCount = 5;
+	stellationLevels = {};
+	stayingStellationLevels = Table[1, {frameIndex, 1, Ceiling[risingFrameCount/8], 1}];
+	stellationLevels = Join[stellationLevels, stayingStellationLevels];
+
+	For[level = 2, level <= maxStellationLevel, level ++,
+		stayingStellationLevels = Table[level-1, {frameIndex, 1, Ceiling[risingFrameCount/8], 1}];
+		stellationLevels = Join[stellationLevels, stayingStellationLevels];
+		increasingStellationLevels = Table[level - 1 + (1 - Cos[(frameIndex - 1)/(risingFrameCount - 1) * Pi 1.0])/2, {frameIndex, 1, risingFrameCount}];
+		stellationLevels = Join[stellationLevels, increasingStellationLevels];
+		stayingStellationLevels = Table[level, {frameIndex, 1, Ceiling[risingFrameCount/8], 1}];
+		stellationLevels = Join[stellationLevels, stayingStellationLevels];
+	];
+	stayingStellationLevels = Table[maxStellationLevel, {frameIndex, 1, Ceiling[risingFrameCount/8], 1}];
+	stellationLevels = Join[stellationLevels, stayingStellationLevels];
+	stellationLevels = Join[stellationLevels, Reverse[stellationLevels]];
 
 	frameCount = Length[stellationLevels];
 
@@ -298,9 +312,8 @@ exportAnimation[] := Module[
 		exportFrame[stellationLevel, spinAngle, frameIndex, outputFolderName];
 	];
 	
-	delay = If[frameCount >= 30, 3, Floor[500/frameCount]];
+	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
-	(* gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFolder <> "\\panning_frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif"; *)
 	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFolder <> "\\spinning_frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
 
 	Print[gifCommand];
@@ -323,38 +336,15 @@ Print[shape];
 faces = generateFaces[p, q];
 exportAnimation[];
 
-(* exportFrame[1.0, 1/10 2.0 Pi/p, 1, "hyper_5_4_0_spinning_frames"]; *)
+(* exportFrame[1.0, 0, 1, "test"]; *)
+(* exportFrame[1.2, 0, 2, "test"]; *)
+(* exportFrame[1.4, 0, 3, "test"]; *)
+(* exportFrame[1.6, 0, 4, "test"]; *)
+(* exportFrame[1.8, 0, 5, "test"]; *)
+(* exportFrame[2.0, 0, 6, "test"]; *)
+(* exportFrame[2.2, 0, 7, "test"]; *)
+(* exportFrame[2.4, 0, 8, "test"]; *)
+(* exportFrame[2.6, 0, 9, "test"]; *)
+(* exportFrame[2.8, 0, 10, "test"]; *)
+(* exportFrame[3.0, 0, 11, "test"]; *)
 
-
-(* exportFrame[1.0, 0.123, 1, "test"]; *)
-(* exportFrame[1.2, 0, 2, "test"];
-exportFrame[1.4, 0, 3, "test"];
-exportFrame[1.6, 0, 4, "test"];
-exportFrame[1.8, 0, 5, "test"];
-exportFrame[2, 0, 6, "test"];
- *)
-
-(* exportFrame[shape, 1, 0.1 Pi, 1, "test"];
-exportFrame[shape, 1, 0.2 Pi, 2, "test"];
-exportFrame[shape, 1, 0.3 Pi, 3, "test"];
-exportFrame[shape, 1, 0.4 Pi, 4, "test"];
- *)
-
-(* outputFileName = shapeWithParams <> ".png";
-
-imageFolder = "images";
-outputFolder = FileNameJoin[{imageFolder, shape}];
-If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
-outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-
-cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
-
-If[exportToPov,
-  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-  Run[cropCommand];
-  ,
-  Export[outputFileName, graph];
-];
-Print["Saved an image to " <> outputFileName];
- *)
