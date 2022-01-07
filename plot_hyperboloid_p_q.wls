@@ -5,19 +5,18 @@ highlightCenter = False;
 topView = False;
 stellateFaces = False;
 
+imageSize = {4, 3} * 720 / 3;
+risingFrameCount = 10;
+
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]],
 	p = 7; q = 3; (* default *)
 ];
 
-stellationLevel = If[Length[argv] >= 3, ToExpression[argv[[3]]], 1];
-
+maxStellationLevel = If[Length[argv] >= 3, ToExpression[argv[[3]]], 1];
+maxRatio = Tan[maxStellationLevel Pi/p]/Tan[Pi/p];
 nGenerations = If[Length[argv] >= 4, ToExpression[argv[[4]]], 3];
-
-
-ratio = Tan[stellationLevel Pi/p]/Tan[Pi/p];
-Print["Stellation ratio: " <> ToString[N[ratio]]];
 
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm];
 colors = <|
@@ -31,6 +30,7 @@ color = If[KeyExistsQ[colors, p], colors[p], Red];
 splitEdgeParts = 8;
 
 dataFolder = "data";
+imageFolder = "images";
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
@@ -44,15 +44,16 @@ Rotation[t_] :=
   {0, Cos[t], Sin[t]},
   {0, -Sin[t], Cos[t]}
 };
-epsilon = 0.00000001;v
+epsilon = 0.00000001;
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 (* ApproxSamePoint[point1_, point2_] := Norm[N[point1 - point2]] < 0.00001; *)
 ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, epsilon];
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
-sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
-sameEdge[e1_, e2_] := sameCenter[e1, e2] && ((ApproxSamePoint[e1[[1]], e2[[1]]] && ApproxSamePoint[e1[[2]], e2[[2]]] ) || (ApproxSamePoint[e1[[1]], e2[[2]]] && ApproxSamePoint[e1[[2]], e2[[1]]] ));
+sameCenter[set1_, set2_] := ApproxSamePoint[Total[set1], Total[set2]];
+(* sameEdge[e1_, e2_] := sameCenter[e1, e2] && ((ApproxSamePoint[e1[[1]], e2[[1]]] && ApproxSamePoint[e1[[2]], e2[[2]]] ) || (ApproxSamePoint[e1[[1]], e2[[2]]] && ApproxSamePoint[e1[[2]], e2[[1]]] )); *)
+sameEdge[e1_, e2_] := sameCenter[e1, e2];
 
 getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
 getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
@@ -74,11 +75,10 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	Map[#[[1]]&, edges[[edgeOrders]]]
 ];
 
+shapeWithParams = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> IntegerString[nGenerations];
 
 generateFaces[p_, q_] := Module[
 	{},
-
-	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 
 	(* chi: p0 and p2 *)
 	inner02 = Cot[Pi/p]*Cot[Pi/q];
@@ -142,22 +142,26 @@ generateFaces[p_, q_] := Module[
 	faces
 ]
 
-plotShape3D[faces_] := Module[
-	{allEdges, edges, allVertices, vertices},
+plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
+	{allEdges, edges, allVertices, vertices, ratio, selectedFaces, displayFaces},
 
+	ratio = Tan[stellationLevel Pi/p]/Tan[Pi/p];
+	Print[{stellationLevel, ratio}];
+
+	rotation = RotationMatrix[spinAngle, {1, 0, 0}];
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
-	selectedFaces = faces;
+	selectedFaces = Map[(#.rotation) &, faces, {2}];
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 	If[stellateFaces, 
 		displayFaces = Map[scaleFace[#, ratio, stellationLevel]&, displayFaces]
 	];
 
-	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."];
-
+	(* Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces."]; *)
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
 	edges = Union[allEdges , SameTest -> sameEdge];
-	Print["There are " <> IntegerString[Length[edges]] <> " edges in total."];
+
+	(* Print["There are " <> IntegerString[Length[edges]] <> " edges in total."]; *)
 	(* norm = HNorm[edges[[1]][[1]]]; *)
 
 	(* splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1]; *)
@@ -165,13 +169,14 @@ plotShape3D[faces_] := Module[
 	(* Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."]; *)
 	displayEdges = Map[getHyperboloid, edges, {2}];
 	displayEdges = Map[scale[#, ratio] &, displayEdges];
+	
 
 	allVertices = Round[Flatten[displayEdges, 1], epsilon];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
 	verticesTally = Tally[allVertices];
 	verticesTallyCounts = Map[#[[2]]&, verticesTally];
 	tallyTally = Tally[verticesTallyCounts];
-	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
+	(* Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."]; *)
 	Print[Map[Length, {faces, allEdges, edges, allVertices, vertices}]];
 	Print[tallyTally];
 
@@ -183,12 +188,12 @@ plotShape3D[faces_] := Module[
 	
 
 	(* splitCenteredEdges = Map[HNormalize[#, norm]&, splitCenteredEdges, {2}]; *)
-	Print["There are " <> IntegerString[Length[centeredEdges]] <> " centered edges after split."];
+	(* Print["There are " <> IntegerString[Length[centeredEdges]] <> " centered edges after split."]; *)
 	displayCenteredEdges = Map[getHyperboloid, centeredEdges, {2}];
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	rangeZoom = Sqrt[ratio];
+	rangeZoom = Sqrt[maxRatio];
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 1.6, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
@@ -231,20 +236,101 @@ plotShape3D[faces_] := Module[
 	graph
 ];
 
+exportFrame[stellationLevel_, spinAngle_, frameIndex_, outputFolderName_] := Module[
+	{},
+
+	graph = plotShape3D[faces, stellationLevel, spinAngle];
+
+	outputFolder = FileNameJoin[{imageFolder, outputFolderName}];
+	If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
+
+	outputFileName = "spinning_frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
+	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
+
+
+	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
+
+	If[exportToPov,
+	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+	  Run[cropCommand];
+	  ,
+	  Export[outputFileName, graph];
+	];
+	Print["Saved an image to " <> outputFileName];
+
+];
+
+exportAnimation[] := Module[
+	{
+		outputFolder,
+		gifFileName,
+		gifFolder,
+		maxExplosionFactor,
+		explodeStep,
+		explosionFactors,
+		frameIndex,
+		explosionFactor,
+		gifCommand
+	},
+
+
+	outputFolderName = shapeWithParams <> "_spinning_frames";
+	outputFolder = FileNameJoin[{imageFolder, outputFolderName}];
+	If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
+
+	gifFileName = shapeWithParams <> "_spinning";
+	gifFolder = FileNameJoin[{imageFolder, shape}];
+	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
+
+	increasingStellationLevels = Table[1 + (maxStellationLevel - 1) * (1 - Cos[(frameIndex - 1)/(risingFrameCount - 1) * Pi 1.0])/2, {frameIndex, 1, risingFrameCount}];
+	stayingMaxStellationLevels = Table[maxStellationLevel, {frameIndex, 1, risingFrameCount/4, 1}];
+	stayingMinStellationLevels = Table[1, {frameIndex, 1, risingFrameCount/4, 1}];
+	stellationLevels = Join[increasingStellationLevels, stayingMaxStellationLevels, Reverse[increasingStellationLevels], stayingMinStellationLevels];
+
+	frameCount = Length[stellationLevels];
+
+	For[frameIndex = 1, frameIndex <= frameCount , frameIndex++,
+		stellationLevel = stellationLevels[[frameIndex]];
+		spinAngle = frameIndex/frameCount * 2.0 Pi / p;
+		Print["Frame #" <> IntegerString[frameIndex] <> "/" <> IntegerString[frameCount] <> " " <> ToString[stellationLevel] <> " " <> ToString[spinAngle] <> " " <> outputFolderName];
+
+		exportFrame[stellationLevel, spinAngle, frameIndex, outputFolderName];
+	];
+	
+	delay = If[frameCount >= 30, 3, Floor[500/frameCount]];
+
+	(* gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFolder <> "\\panning_frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif"; *)
+	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFolder <> "\\spinning_frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
+
+	Print[gifCommand];
+	Run[gifCommand];
+	Print["Saved the animation to " <> gifFolder <> "\\" <> gifFileName <> ".gif"];
+];
+
 
 Print[shape];
-
-dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
-Print["Reading data for " <> shape <> " from " <> dataFileName];
-
-(* faces = Get[dataFileName]; *)
 faces = generateFaces[p, q];
+exportAnimation[];
 
-graph = plotShape3D[faces];
+(* exportFrame[1.0, 1/10 2.0 Pi/p, 1, "hyper_5_4_0_spinning_frames"]; *)
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[topView, "topView_", ""] <> If[stellateFaces, "stellateFaces_", ""] <> shape <> "_" <> ToString[stellationLevel] <> "_" <> IntegerString[nGenerations] <> ".png";
 
-imageSize = {600, 450};
+(* exportFrame[1.0, 0.123, 1, "test"]; *)
+(* exportFrame[1.2, 0, 2, "test"];
+exportFrame[1.4, 0, 3, "test"];
+exportFrame[1.6, 0, 4, "test"];
+exportFrame[1.8, 0, 5, "test"];
+exportFrame[2, 0, 6, "test"];
+ *)
+
+(* exportFrame[shape, 1, 0.1 Pi, 1, "test"];
+exportFrame[shape, 1, 0.2 Pi, 2, "test"];
+exportFrame[shape, 1, 0.3 Pi, 3, "test"];
+exportFrame[shape, 1, 0.4 Pi, 4, "test"];
+ *)
+
+(* outputFileName = shapeWithParams <> ".png";
 
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, shape}];
@@ -261,3 +347,4 @@ If[exportToPov,
   Export[outputFileName, graph];
 ];
 Print["Saved an image to " <> outputFileName];
+ *)
