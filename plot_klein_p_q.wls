@@ -197,7 +197,7 @@ plotShape3D[faces_] := Module[
 	rangeZoom = Sqrt[ratio];
 	lighting = {{"Point", White, {10, -10, 10}}};
 	(* range = 0.4 * Sqrt[p] * rangeZoom; *)
-	range = Max[Map[Norm, vertices]] * 0.85;
+	range = Max[Map[Norm, vertices]] * 0.8;
 	Print["Plot range: " <> ToString[range]];
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-5, 0, 0};
@@ -210,7 +210,7 @@ plotShape3D[faces_] := Module[
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[Purple], Map[Sphere[#, thickness * rangeZoom]&, vertices]
+				Opacity[1], FaceForm[Cyan], Map[Sphere[#, thickness * rangeZoom]&, vertices]
 			}
 	};
 
@@ -234,7 +234,7 @@ plotShape3D[faces_] := Module[
 		(* ViewPoint -> If[topView, {10, 0, 0}, {3, -3, 3}], *)
 		(* ViewVertical -> If[topView, {0, 1, 0}, {1, 0, 0}], *)
 		ViewPoint -> {100, 0, 0},
-		ViewVertical -> {0, 0, 1},
+		ViewVertical -> {0, 1, 0},
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
 	];
