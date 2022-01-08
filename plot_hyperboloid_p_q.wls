@@ -208,7 +208,7 @@ plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
 				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[White], Map[Sphere[#[[1]], thickness * rangeZoom]&, verticesTally]
+				Opacity[1], FaceForm[Cyan], Map[Sphere[#[[1]], thickness * rangeZoom]&, verticesTally]
 			}
 	};
 
@@ -284,8 +284,6 @@ exportAnimation[] := Module[
 	gifFolder = FileNameJoin[{imageFolder, shape}];
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
-	maxStellationLevel = 3;
-	risingFrameCount = 5;
 	stellationLevels = {};
 	stayingStellationLevels = Table[1, {frameIndex, 1, Ceiling[risingFrameCount/8], 1}];
 	stellationLevels = Join[stellationLevels, stayingStellationLevels];
