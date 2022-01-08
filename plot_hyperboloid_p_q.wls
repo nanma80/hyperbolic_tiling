@@ -6,6 +6,7 @@ topView = False;
 stellateFaces = True;
 
 imageSize = {4, 3} * 720 / 3;
+(* risingFrameCount = 7; *)
 risingFrameCount = 75;
 
 argv = Rest @ $ScriptCommandLine;
@@ -194,10 +195,10 @@ plotShape3D[faces_, stellationLevel_, spinAngle_] := Module[
 
 	(* centeredVertices = displayCenteredFaces[[1]]; *)
 
-	rangeZoom = Sqrt[maxRatio] * 1.2;
+	rangeZoom = Sqrt[maxRatio] * 1.2 * If[p < 6, 1, 0.5];
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = If[topView, 1.6, 3] * rangeZoom;
-	thickness = range / 80.0 / rangeZoom;
+	thickness = range / 80.0 / rangeZoom * If[p < 6, 1, 0.7];
 	viewCenter = {-5, 0, 0};
 
 	elements = {
