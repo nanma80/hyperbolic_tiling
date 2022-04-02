@@ -12,8 +12,8 @@ If[Length[argv] >= 3,
 	p = 5; q = 3; r = 4;
 ];
 
-cellThreshold = 100;
-(* cellThreshold = 300; *)
+(* cellThreshold = 100; *)
+cellThreshold = 300;
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
