@@ -1,6 +1,7 @@
 #!/usr/bin/env wolframscript
 
-models = {"hyperboloid", "klein", "poincare"};
+(* models = {"hyperboloid", "klein", "poincare"}; *)
+models = {"klein", "poincare"};
 (* models = {"hyperboloid"}; *)
 (* models = {"klein"}; *)
 (* models = {"poincare"}; *)
@@ -25,14 +26,17 @@ rangeFactor = 0.8;
 outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
+splitEdgeParts = 8;
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
 
 phi = (1 + Sqrt[5])/2;
+splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
 HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
+HNormalize[v_, norm_] := v/HNorm[v] * norm;
 Rotation[t_] :=
 {
   {1,  0, 0},
@@ -58,7 +62,7 @@ colorMap := <|
 	{3,5,3} -> Red,
 	{5,3,4} -> Blue,
 	{4,3,5} -> Green,
-	{5,3,5} -> Yellow
+	{5,3,5} -> Purple
 |>;
 
 getVertexFigureCoordinates[p_, q_, r_] := Module[
@@ -95,8 +99,6 @@ getVertexFigureCoordinates[p_, q_, r_] := Module[
 
 	Map[#/Norm[#]&, vertexFigureCoordinates]
 ];
-
-dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 
 getCells[p_, q_, r_] := Module[
 	{},
@@ -175,18 +177,56 @@ getCells[p_, q_, r_] := Module[
 	cells
 ];
 
+GetDataThroughCache[p, q, r] := Module[
+	{},
+	data = <||>;
+	dataFileName = FileNameJoin[{dataFolder, shape <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+	If[FileExistsQ[dataFileName], 
+      Print["Reading from from " <> dataFileName];
+      data = Get[dataFileName],
+      (* file do not exist *)
+      Print["Creating data for " <> dataFileName];
 
-cells = getCells[p, q, r];
-cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
-heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
-tallyCounts = Map[#[[2]]&, heightTally];
+			cells = getCells[p, q, r];
+			cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+			heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+			tallyCounts = Map[#[[2]]&, heightTally];
 
-Print[heightTally];
-Print[tallyCounts];
+			Print[heightTally];
+			Print[tallyCounts];
 
-faces = Join[ Flatten[cells, 1]];
-edges = Join[ Flatten[Map[getEdgesFromFace, faces], 1] ];
-vertices = Join[ Flatten[faces,1]];
+(* 			faces = Join[ Flatten[cells, 1]];
+			edges = Join[ Flatten[Map[getEdgesFromFace, faces], 1] ];
+			vertices = Join[ Flatten[faces,1]];
+ *)
+
+ 			Print["deduping faces"];
+			faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
+			Print["deduping edges"];
+			edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
+			Print["deduping vertices"];
+			vertices = Union[ Flatten[faces,1], SameTest -> ApproxSamePoint];
+			data = <|
+				"cells" -> cells,
+				"faces" -> faces,
+				"edges" -> edges,
+				"vertices" -> vertices
+			|>;
+
+      Save[dataFileName, data];
+      Print["Saved data " <> dataFileName];
+  ];
+  data
+];
+
+data = GetDataThroughCache[p,q,r];
+cells = data["cells"];
+faces = data["faces"];
+edges = data["edges"];
+vertices = data["vertices"];
+Print["Counts: cells, faces, edges, vertices"];
+Print[Map[Length, {cells, faces, edges, vertices}]];
+
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
@@ -200,8 +240,18 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		]
 	];
 
+	If[model == "poincare",
+		Print["There are " <> IntegerString[Length[edges]] <> " edges before split."];
+		norm = HNorm[edges[[1]][[1]]];
+		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1];
+		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
+		Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."];
+		edges = splitEdges;
+	];
+
 	range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor;
 	thickness = range * 0.008;
+	thicknessDecayExponent = 1;
 
 	color = colorMap[{p,q,r}];
 
@@ -211,13 +261,29 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 				Opacity[0.2], FaceForm[color], Map[Polygon, Map[projectTo3d, faces, {2}]]
 			}, *)
 			{
-				Opacity[1], FaceForm[color], Map[Cylinder[#, thickness]&, Map[projectTo3d, edges, {2}]]
+				Opacity[1], FaceForm[color], 
+				Table[
+            Cylinder[
+                Map[projectTo3d, edges[[edgeIndex]]], 
+                thickness * 5/(1 + edges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+            ], 
+            {edgeIndex, 1, Length[edges]}
+        ]
+				(* Map[Cylinder[#, thickness]&, Map[projectTo3d, edges, {2}]] *)
 			},
 			{
-				Opacity[1], FaceForm[color], Map[Sphere[#, thickness * 2]&, Map[projectTo3d, vertices]]
+				Opacity[1], FaceForm[color], 
+				Table[
+            Sphere[
+                projectTo3d[vertices[[vIndex]]],
+                thickness * 7/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
+            ], 
+            {vIndex, 1, Length[vertices]}
+        ]
+				(* Map[Sphere[#, thickness * 2]&, Map[projectTo3d, vertices]] *)
 			}
 		},
-		ViewPoint -> {3, -4, 5}*30,
+		ViewPoint -> {3, -4, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
