@@ -13,6 +13,7 @@ If[Length[argv] >= 3,
 ];
 
 cellThreshold = 100;
+(* cellThreshold = 300; *)
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
@@ -100,7 +101,7 @@ getVertexFigureCoordinates[p_, q_, r_] := Module[
 	Map[#/Norm[#]&, vertexFigureCoordinates]
 ];
 
-getCells[p_, q_, r_] := Module[
+getCells[p_, q_, r_, cellThreshold_] := Module[
 	{},
 	piOverHpq = ArcCos[Sqrt[Cos[Pi/p]^2 + Cos[Pi/q]^2]]//Simplify;
 	piOverHqr = ArcCos[Sqrt[Cos[Pi/q]^2 + Cos[Pi/r]^2]]//Simplify;
@@ -174,6 +175,32 @@ getCells[p_, q_, r_] := Module[
 	];
 
 	Print["Generated " <> IntegerString[Length[cells]] <> " cells in total."];
+
+	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+	tallyCounts = Map[#[[2]]&, heightTally];
+
+	includeCount = 0;
+	heightThreshold = -1;
+	For[levelIndex = 1, levelIndex <= Length[heightTally], levelIndex++,
+		If[includeCount < cellThreshold,
+			includeCount += heightTally[[levelIndex]][[2]];
+			If[includeCount >= cellThreshold,
+				heightThreshold = heightTally[[levelIndex]][[1]] + epsilon
+			];
+		];
+	];
+	If[heightThreshold == -1,
+		heightThreshold = heightTally[[Length[heightTally]]][[1]] + epsilon
+	];
+
+
+	Print[heightTally];
+	Print[tallyCounts];
+	Print[heightThreshold];
+	cells = Select[cells, getCellCenter[#][[1]] <= heightThreshold&];
+	Print["Filter down to " <> IntegerString[Length[cells]] <> " cells."];
+
 	cells
 ];
 
@@ -187,7 +214,7 @@ GetDataThroughCache[p, q, r] := Module[
       (* file do not exist *)
       Print["Creating data for " <> dataFileName];
 
-			cells = getCells[p, q, r];
+			cells = getCells[p, q, r, cellThreshold];
 			cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
 			heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
 			tallyCounts = Map[#[[2]]&, heightTally];
