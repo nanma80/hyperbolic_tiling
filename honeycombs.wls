@@ -299,11 +299,11 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 				(* Map[Cylinder[#, thickness]&, Map[projectTo3d, edges, {2}]] *)
 			},
 			{
-				Opacity[1], FaceForm[color], 
+				Opacity[1], FaceForm[Cyan], 
 				Table[
             Sphere[
                 projectTo3d[vertices[[vIndex]]],
-                thickness * 7/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
+                thickness * 10/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
             ], 
             {vIndex, 1, Length[vertices]}
         ]
