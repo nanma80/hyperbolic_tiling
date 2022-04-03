@@ -91,7 +91,7 @@ getEdges[vertices_] := Module[
     For[i = 1, i <= Length[vertices]-1, i++, 
         For[j = i + 1, j <= Length[vertices], j++, 
             If[
-                Abs[ HInner[vertices[[i]], vertices[[j]]] - minInner ] < epsilon,
+                Abs[ HInner[vertices[[i]], vertices[[j]]] - minInner ] < 100 * epsilon,
                 AppendTo[edges, {i, j}] 
             ];
         ];
