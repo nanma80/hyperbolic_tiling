@@ -143,10 +143,10 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 		seedIndex = remaining[[1]];
 		Print[seedIndex];
 		subset1 = {vertices[[seedIndex]]};
-		For[k = 1, k < 10, k++,
+		For[k = 1, k < 20, k++,
 			beforeCount = Length[subset1];
 			subset1 = Flatten[ Table[centralReflect[subset1[[i]], reflectionCenters[[j]] ], {i, Length[subset1]}, {j, Length[reflectionCenters]}], 1];
-			subset1 = Select[subset1, #[[1]] <= maxHeight &];
+			subset1 = Select[subset1, #[[1]] <= maxHeight + epsilon &];
 			subset1 = Union[subset1, SameTest -> ApproxSamePoint];
 			subset1 = Intersection[subset1, vertices, SameTest -> ApproxSamePoint];
 			Print[{k, Length[subset1]}];
@@ -160,11 +160,13 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 			verticesMap[Round[ vertices[[vi]], epsilon] ] = vi
 		];
 
-		subsetIndices = {};
+		subsetIndices = {seedIndex};
 		For[si = 1, si <= Length[subset1], si++,
 			AppendTo[subsetIndices, verticesMap[Round[subset1[[si]], epsilon]]];
 		];
-		subsetIndices = Sort[subsetIndices];
+		subsetIndices = Sort[Union[subsetIndices]];
+		Print["adding indices"];
+		Print[Length[subsetIndices]];
 		Print[subsetIndices];
 
 		discoveredIndices = Union[discoveredIndices, subsetIndices];
@@ -188,11 +190,15 @@ Print[Map[Length, {cells, faces, edges, vertices}]];
 normalizedCellCenters = Map[HNormalize[getCellCenter[#], HNorm[vertices[[1]]]]&, cells ];
 reflectionCenters = Join[ vertices, normalizedCellCenters ];
 
-(* allSubsets = getAllSubsets[vertices, reflectionCenters]; *)
+allSubsets = getAllSubsets[vertices, reflectionCenters];
 
-(* Print[allSubsets]; *)
-(* Print[Map[Length, allSubsets]]; *)
+Print[allSubsets];
+Print["number of subsets:"];
+Print[Length[allSubsets]];
+Print["vertices in all subsets:"];
+Print[Map[Length, allSubsets]];
 
+Exit[];
 
 subsetIndices1 = If[ cellThreshold == 100,
 	{1, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93},
@@ -243,7 +249,7 @@ If[exportToPov,
 
 
 
-
+(* doesn't work well for 57-cell *)
 
 (* 
 100:
