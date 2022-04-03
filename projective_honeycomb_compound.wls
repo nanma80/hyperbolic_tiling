@@ -6,12 +6,15 @@
 (* models = {"klein"}; *)
 models = {"poincare"};
 
-componentIndex = 1;
-
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 3, 
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]]; r = ToExpression[argv[[3]]],
 	p = 3; q = 5; r = 3;
+];
+
+If[Length[argv] >= 4, 
+	componentIndex = ToExpression[argv[[4]]],
+	componentIndex = 1
 ];
 
 (* cellThreshold = 100; *)
@@ -30,7 +33,7 @@ rangeFactor = 0.8;
 outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
-splitEdgeParts = 8;
+splitEdgeParts = 15;
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
@@ -215,12 +218,12 @@ reflectionCenters = Join[ vertices, normalizedCellCenters ];
 allSubsets = getAllSubsetsThroughCache[vertices, reflectionCenters];
 
 (* Print[allSubsets]; *)
-Print["number of subsets:"];
+Print["number of components:"];
 Print[Length[allSubsets]];
-Print["vertices in all subsets:"];
+Print["vertices in all components:"];
 Print[Map[Length, allSubsets]];
 
-Print["All subsets before dedup, after dedup (should be same), all vertex count"];
+Print["All components before dedup, after dedup (should be same), all vertex count"];
 Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[vertices]}];
 
 component = vertices[[allSubsets[[componentIndex]]]];
