@@ -17,9 +17,12 @@ If[Length[argv] >= 4,
 	componentIndex = 1
 ];
 
-cellThreshold = 100;
+(* cellThreshold = 100; *)
 (* cellThreshold = 300; *)
-(* cellThreshold = 1000; *)
+cellThreshold = 1000;
+
+(* plotTwoEdges = False; *)
+plotTwoEdges = True;
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
@@ -73,14 +76,14 @@ colorMap := <|
 |>;
 
 
-getEdges[vertices_] := Module[
+getEdges[vertices_, ignoreLessThan_] := Module[
     {edges, inner, i, j},
     edges = {};
     minInner = 10^10;
     For[i = 1, i <= Length[vertices]-1, i++, 
         For[j = i + 1, j <= Length[vertices], j++, 
             ijInner = HInner[vertices[[i]], vertices[[j]]];
-            If[ijInner < minInner,
+            If[ijInner > ignoreLessThan + epsilon && ijInner < minInner,
                 minInner = ijInner
             ]
         ];
@@ -91,7 +94,7 @@ getEdges[vertices_] := Module[
     For[i = 1, i <= Length[vertices]-1, i++, 
         For[j = i + 1, j <= Length[vertices], j++, 
             If[
-                Abs[ HInner[vertices[[i]], vertices[[j]]] - minInner ] < 100 * epsilon,
+                Abs[ HInner[vertices[[i]], vertices[[j]]] - minInner ] < 10 * epsilon,
                 AppendTo[edges, {i, j}] 
             ];
         ];
@@ -238,13 +241,26 @@ Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[
 
 component = vertices[[allSubsets[[componentIndex]]]];
 
-edgeIndices = getEdges[component];
+edgeIndices = getEdges[component, -1];
 (* no triangles *)
 (* triangles = getTriangles[subset]; *)
 Print["edge count"];
 Print[edgeIndices//Length];
+inner1 = Apply[HInner, component[[ edgeIndices[[1]] ]]];
+Print[inner1];
+
+edgeIndices2 = getEdges[component, inner1];
+
+Print["secondary edge count"];
+Print[edgeIndices2//Length];
+inner2 = Apply[HInner, component[[ edgeIndices2[[1]] ]]];
+Print[inner2];
+
+(* Print["edge inner"]; *)
+(* Print[] *)
 
 componentEdges = Map[component[[#]]&, edgeIndices];
+componentEdges2 = Map[component[[#]]&, edgeIndices2];
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
@@ -265,6 +281,13 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
 		Print["There are " <> IntegerString[Length[splitEdges]] <> " component edges after split."];
 		componentEdges = splitEdges;
+
+		Print["There are " <> IntegerString[Length[componentEdges2]] <> " secondary component edges before split."];
+		norm = HNorm[componentEdges2[[1]][[1]]];
+		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, componentEdges2], 1];
+		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
+		Print["There are " <> IntegerString[Length[splitEdges]] <> " secondary component edges after split."];
+		componentEdges2 = splitEdges;
 	];
 
 	range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor;
@@ -273,8 +296,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 
 	color = colorMap[{p,q,r}];
 
-	graph = Graphics3D[
-		{
+	graphElements = {
 			{
 				Opacity[1], FaceForm[color], 
 				Table[
@@ -295,13 +317,32 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		            {vIndex, 1, Length[vertices]}
 		        ]
 			}
-		},
+		};
+
+	altColor = Purple;
+	If[color == Purple, altColor = Red];
+	
+	If[plotTwoEdges,
+		AppendTo[graphElements, {
+				Opacity[1], FaceForm[Purple], 
+				Table[
+		            Cylinder[
+		                Map[projectTo3d, componentEdges2[[edgeIndex]]], 
+		                thickness * 5/(1 + componentEdges2[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + componentEdges2[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+		            ], 
+		            {edgeIndex, 1, Length[componentEdges2]}
+		        ]
+			}]
+	];
+
+	graph = Graphics3D[
+		graphElements,
 		ViewPoint -> {3, -4, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
 
-	outputFileName = shape <> "_" <> model <> "_component_" <> IntegerString[componentIndex] <> "_" <> IntegerString[cellThreshold] <> ".png";
+	outputFileName = shape <> "_" <> model <> "_component_" <> IntegerString[componentIndex] <> "_" <> If[plotTwoEdges, "two_edges_", ""] <> IntegerString[cellThreshold] <> ".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
