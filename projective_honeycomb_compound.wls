@@ -17,9 +17,9 @@ If[Length[argv] >= 4,
 	componentIndex = 1
 ];
 
-(* cellThreshold = 100; *)
+cellThreshold = 100;
 (* cellThreshold = 300; *)
-cellThreshold = 1000;
+(* cellThreshold = 1000; *)
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
@@ -149,7 +149,7 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 	{maxHeight, discoveredIndices, allSubsets, remaining, seedIndex, subset1, k, verticesMap, subsetIndices},
 
 	maxHeight = Max[Map[#[[1]]&, vertices]];
-	discoveredIndices = {};
+	
 	allSubsets = {};
 
 	verticesMap = <||>;
@@ -158,8 +158,8 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 	];
 
 	While[
-		Length[discoveredIndices] < Length[vertices],
-
+		Length[Apply[Union, allSubsets]] < Length[vertices],
+		discoveredIndices = Apply[Union, allSubsets];
 		remaining = Sort[Complement[Range[Length[vertices]], discoveredIndices]];
 
 		Print[];
@@ -187,11 +187,21 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 		Print[{seedIndex, k, subset1//Length, subsetIndices//Length}];
 		Print[subsetIndices];
 
-		discoveredIndices = Union[discoveredIndices, subsetIndices];
-		AppendTo[allSubsets, subsetIndices];
+		For[subIndex = 1, subIndex <= Length[allSubsets], subIndex++,
+			If[Length[Intersection[ allSubsets[[subIndex]], subsetIndices ]] > 0,
+				allSubsets[[subIndex]] = Sort[Union[allSubsets[[subIndex]], subsetIndices]];
+				Print["Merge to an old component, #" <> IntegerString[subIndex]];
+				Break[]
+			]
+		];
 
-		Print["Discovery progress: before dedup, after dedup (should be same), final target"];
-		Print[{Total[Map[Length, allSubsets]], Length[discoveredIndices], Length[vertices]}];
+		If[subIndex > Length[allSubsets],
+			Print["new component"];
+			AppendTo[allSubsets, subsetIndices]
+		];
+
+		Print["Discovery progress: component count. before dedup, after dedup (should be same), final target"];
+		Print[{Length[allSubsets], Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[vertices]}];
 	];
 
 	allSubsets
