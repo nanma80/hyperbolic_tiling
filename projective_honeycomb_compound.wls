@@ -17,9 +17,9 @@ If[Length[argv] >= 4,
 	componentIndex = 1
 ];
 
-(* cellThreshold = 100; *)
+cellThreshold = 100;
 (* cellThreshold = 300; *)
-cellThreshold = 1000;
+(* cellThreshold = 1000; *)
 
 (* plotTwoEdges = False; *)
 plotTwoEdges = True;
@@ -58,6 +58,7 @@ HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mi
 centralReflect[point_, mirror_] := - HReflect[point, mirror];
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, epsilon];
+ApproxSamePointLoose[point1_, point2_] := Round[point1, 10 epsilon] == Round[point2, 10 epsilon];
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
@@ -177,7 +178,7 @@ getAllSubsets[vertices_, reflectionCenters_] := Module[
 			subset1 = Flatten[ Table[centralReflect[subset1[[i]], reflectionCenters[[j]] ], {i, Length[subset1]}, {j, Length[reflectionCenters]}], 1];
 			subset1 = Select[subset1, #[[1]] <= maxHeight + epsilon &];
 			subset1 = Union[subset1, SameTest -> ApproxSamePoint];
-			subset1 = Intersection[subset1, vertices, SameTest -> ApproxSamePoint];
+			subset1 = Intersection[vertices, subset1, SameTest -> ApproxSamePointLoose];
 			Print[{k, Length[subset1]}];
 			If[beforeCount == Length[subset1], Break[]];
 		];
