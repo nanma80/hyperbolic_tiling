@@ -321,10 +321,10 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 
 	altColor = Purple;
 	If[color == Purple, altColor = Red];
-	
+
 	If[plotTwoEdges,
 		AppendTo[graphElements, {
-				Opacity[1], FaceForm[Purple], 
+				Opacity[1], FaceForm[altColor], 
 				Table[
 		            Cylinder[
 		                Map[projectTo3d, componentEdges2[[edgeIndex]]], 
