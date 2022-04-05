@@ -18,7 +18,7 @@ If[Length[argv] >= 4,
 ];
 
 cellThreshold = 100;
-(* cellThreshold = 300; *)
+cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
 (* plotTwoEdges = False; *)
