@@ -100,7 +100,7 @@ getEdges[vertices_, ignoreLessThan_] := Module[
 ];
 
 
-dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[1000] <> ".wl"}];
 If[FileExistsQ[dataFileName], 
 	data = Get[dataFileName],
 	Print["Cannot find data file "<> dataFileName];
@@ -135,11 +135,12 @@ Print[Map[Length, {cells435, faces435, edges435, vertices435}]];
 maxHeight435 = Max[Map[#[[1]]&, vertices435]];
 Print[maxHeight435];
 
-only534 = Complement[vertices435, vertices534, SameTest -> ApproxSamePoint];
-Print[Length[only534]];
+only435 = Complement[vertices435, vertices534, SameTest -> ApproxSamePoint];
+Print["only in 435"];
+Print[Length[only435]];
 
-Print[Min[Map[#[[1]]&, only534]]];
-Print[Max[Map[#[[1]]&, only534]]];
+Print[Min[Map[#[[1]]&, only435]]];
+Print[Max[Map[#[[1]]&, only435]]];
 
 
 
