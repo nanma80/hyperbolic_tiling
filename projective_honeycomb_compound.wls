@@ -19,10 +19,14 @@ If[Length[argv] >= 4,
 
 cellThreshold = 100;
 cellThreshold = 300;
-(* cellThreshold = 1000; *)
+cellThreshold = 1000;
 
-(* plotTwoEdges = False; *)
+plotTwoEdges = False;
 plotTwoEdges = True;
+
+highlightCycle = False;
+highlightCycle = True;
+cycleLength = 6;
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
@@ -257,6 +261,19 @@ Print[edgeIndices2//Length];
 inner2 = Apply[HInner, component[[ edgeIndices2[[1]] ]]];
 Print[inner2];
 
+g12 = Graph[Join[edgeIndices, edgeIndices2]];
+cycle1 = FindCycle[g12, cycleLength];
+Print["Found " <> IntegerString[Length[cycle1]] <> " cycles"];
+
+If[Length[cycle1] > 0,
+	Print["processing cycle"];
+	Print[cycle1[[1]]];
+	cycle1Indices = Map[#[[1]] &, cycle1[[1]]];
+	cyclePoints = component[[cycle1Indices]];
+	cycleEdges = getEdgesFromFace[cyclePoints],
+	Print["no cycle detected"]
+];
+
 (* Print["edge inner"]; *)
 (* Print[] *)
 
@@ -289,6 +306,15 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
 		Print["There are " <> IntegerString[Length[splitEdges]] <> " secondary component edges after split."];
 		componentEdges2 = splitEdges;
+
+		If[Length[cycle1] > 0,
+			Print["There are " <> IntegerString[Length[cycleEdges]] <> " cycle edges before split."];
+			norm = HNorm[cycleEdges[[1]][[1]]];
+			splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, cycleEdges], 1];
+			splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
+			Print["There are " <> IntegerString[Length[splitEdges]] <> " cycle edges after split."];
+			cycleEdges = splitEdges;
+		];
 	];
 
 	range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor;
@@ -336,6 +362,29 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 			}]
 	];
 
+	If[highlightCycle && Length[cycle1] > 0,
+		AppendTo[graphElements, {
+				Opacity[1], FaceForm[Green], 
+				Table[
+		            Cylinder[
+		                Map[projectTo3d, cycleEdges[[edgeIndex]]], 
+		                thickness * 9/(1 + cycleEdges[[edgeIndex]][[1]][[1]]^(thicknessDecayExponent/2) + cycleEdges[[edgeIndex]][[2]][[1]]^(thicknessDecayExponent/2))
+		            ], 
+		            {edgeIndex, 1, Length[cycleEdges]}
+		        ]
+			}];
+		AppendTo[graphElements, {
+				Opacity[1], FaceForm[Darker[Green]], 
+				Table[
+		            Sphere[
+		                projectTo3d[cyclePoints[[vIndex]]],
+		                thickness * 18/(1 + cyclePoints[[vIndex]][[1]]^(thicknessDecayExponent/2))
+		            ], 
+		            {vIndex, 1, Length[cyclePoints]}
+		        ]
+			}]
+	];
+
 	graph = Graphics3D[
 		graphElements,
 		ViewPoint -> {3, -4, 1}*30,
@@ -343,7 +392,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		Lighting -> lighting
 	];
 
-	outputFileName = shape <> "_" <> model <> "_component_" <> IntegerString[componentIndex] <> "_" <> If[plotTwoEdges, "two_edges_", ""] <> IntegerString[cellThreshold] <> ".png";
+	outputFileName = shape <> "_" <> model <> "_component_" <> IntegerString[componentIndex] <> "_" <> If[plotTwoEdges, "two_edges_", ""] <> If[highlightCycle, "cycle_", ""] <>  IntegerString[cellThreshold] <> ".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
