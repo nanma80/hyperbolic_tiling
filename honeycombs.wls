@@ -286,24 +286,22 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 			{
 				Opacity[1], FaceForm[color], 
 				Table[
-            Cylinder[
-                Map[projectTo3d, edges[[edgeIndex]]], 
-                thickness * 5/(1 + edges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
-            ], 
-            {edgeIndex, 1, Length[edges]}
-        ]
-				(* Map[Cylinder[#, thickness]&, Map[projectTo3d, edges, {2}]] *)
+		            Cylinder[
+		                Map[projectTo3d, edges[[edgeIndex]]], 
+		                thickness * 5/(1 + edges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+		            ], 
+		            {edgeIndex, 1, Length[edges]}
+		        ]
 			},
 			{
 				Opacity[1], FaceForm[Cyan], 
 				Table[
-            Sphere[
-                projectTo3d[vertices[[vIndex]]],
-                thickness * 10/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
-            ], 
-            {vIndex, 1, Length[vertices]}
-        ]
-				(* Map[Sphere[#, thickness * 2]&, Map[projectTo3d, vertices]] *)
+		            Sphere[
+		                projectTo3d[vertices[[vIndex]]],
+		                thickness * 10/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
+		            ], 
+		            {vIndex, 1, Length[vertices]}
+		        ]
 			}
 		},
 		ViewPoint -> {3, -4, 1}*30,

@@ -8,17 +8,20 @@
 (* models = {"klein"}; *)
 models = {"poincare"};
 
-
 cellThreshold = 100;
 cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
-plotTwoEdges = False;
-(* plotTwoEdges = True; *)
+heightThreshold = 4;
 
-highlightCycle = False;
-(* highlightCycle = True; *)
-(* cycleLength = 6; *)
+show534 = False;
+show534 = True;
+
+argv = Rest @ $ScriptCommandLine;
+displayCompIndex = If[Length[argv] >= 1, 
+	ToExpression[argv[[1]]],
+	0
+];
 
 (* Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"]; *)
 (* shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm]; *)
@@ -28,6 +31,9 @@ epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 0.8;
+colors = {Red, Green, Blue, Purple, Yellow};
+color534 = Gray;
+colorVertices = Cyan;
 
 outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
@@ -67,14 +73,6 @@ getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
 getPoincare[v_] := {v[[2]], v[[3]], v[[4]]}/(1+v[[1]]);
-
-colorMap := <|
-	{3,5,3} -> Red,
-	{5,3,4} -> Blue,
-	{4,3,5} -> Green,
-	{5,3,5} -> Purple
-|>;
-
 
 getEdges[vertices_, ignoreLessThan_] := Module[
     {edges, inner, i, j},
@@ -231,7 +229,7 @@ getAllComponents[heightThreshold_] := Module[
 	transformedCenter = cellCenter1.Transpose[cellCenterToOrigin];
 	setup = Transpose[cellCenterToOrigin].Boost[-ArcCosh[transformedCenter[[1]]]];
 	rotation3dDirection = (faceCenter1.setup)[[Range[2, 4]]];
-	order5Rotation = ArrayFlatten[{{1, 0}, {0, RotationMatrix[2 Pi/5, rotation3dDirection]}}];
+	order5Rotation = ArrayFlatten[{{1, 0}, {0, RotationMatrix[4 Pi/5, rotation3dDirection]}}];
 	componentVertices = Table[vertices435.setup.MatrixPower[order5Rotation, k].Inverse[setup], {k, 0, 4}];
 	componentEdges = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, edges435], {k, 0, 4}];
 	componentFaces = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, faces435], {k, 0, 4}];
@@ -307,71 +305,57 @@ getAllComponents[heightThreshold_] := Module[
 	data
 ];
 
-data = getAllComponentsThroughCache[10];
+data = getAllComponentsThroughCache[heightThreshold];
 
 componentCells = data["componentCells"];
 componentFaces = data["componentFaces"];
 componentEdges = data["componentEdges"];
 componentVertices = data["componentVertices"];
 
+Print["The counts of cells, faces, edges, and vertices for all components"];
 Print[Map[Length, componentCells]];
 Print[Map[Length, componentFaces]];
 Print[Map[Length, componentEdges]];
 Print[Map[Length, componentVertices]];
 
+componentUniqueVertices = Union[Apply[Join, componentVertices], SameTest -> ApproxSamePoint];
+Print["Unique vertex count"];
+Print[Length[componentUniqueVertices]];
+
+maxHeight = Max[Map[#[[1]]&, componentUniqueVertices]] + epsilon;
+Print["maxHeight"];
+Print[maxHeight];
 
 
-Exit[];
-
-normalizedCellCenters = Map[HNormalize[getCellCenter[#], HNorm[vertices[[1]]]]&, cells ];
-reflectionCenters = Join[ vertices, normalizedCellCenters ];
-
-allSubsets = getAllSubsetsThroughCache[vertices, reflectionCenters];
-
-(* Print[allSubsets]; *)
-Print["number of components:"];
-Print[Length[allSubsets]];
-Print["vertices in all components:"];
-Print[Map[Length, allSubsets]];
-
-Print["All components before dedup, after dedup (should be same), all vertex count"];
-Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[vertices]}];
-
-component = vertices[[allSubsets[[componentIndex]]]];
-
-edgeIndices = getEdges[component, -1];
-(* no triangles *)
-(* triangles = getTriangles[subset]; *)
-Print["edge count"];
-Print[edgeIndices//Length];
-inner1 = Apply[HInner, component[[ edgeIndices[[1]] ]]];
-Print[inner1];
-
-edgeIndices2 = getEdges[component, inner1];
-
-Print["secondary edge count"];
-Print[edgeIndices2//Length];
-inner2 = Apply[HInner, component[[ edgeIndices2[[1]] ]]];
-Print[inner2];
-
-g12 = Graph[Join[edgeIndices, edgeIndices2]];
-cycle1 = FindCycle[g12, cycleLength];
-Print["Found " <> IntegerString[Length[cycle1]] <> " cycles"];
-
-If[Length[cycle1] > 0,
-	Print["processing cycle"];
-	Print[cycle1[[1]]];
-	cycle1Indices = Map[#[[1]] &, cycle1[[1]]];
-	cyclePoints = component[[cycle1Indices]];
-	cycleEdges = getEdgesFromFace[cyclePoints],
-	Print["no cycle detected"]
+dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+If[FileExistsQ[dataFileName], 
+	data = Get[dataFileName],
+	Print["Cannot find data file "<> dataFileName];
+	Exit[]
 ];
 
-(* Print["edge inner"]; *)
-(* Print[] *)
+cells534 = data["cells"];
+faces534 = data["faces"];
+edges534 = data["edges"];
+vertices534 = data["vertices"];
+Print["534 Counts: faces, edges, vertices"];
+Print[Map[Length, {faces534, edges534, vertices534}]];
 
-componentEdges = Map[component[[#]]&, edgeIndices];
-componentEdges2 = Map[component[[#]]&, edgeIndices2];
+filterFace[face_] := Mean[Map[#[[1]]&, face]] <= heightThreshold * 1.3;
+selectedFaces534 = Select[faces534, filterFace];
+
+(* selectedFaces534 = Union[ Flatten[cells534, 1], SameTest -> sameCenter]; *)
+Print["deduping 534 edges"];
+selectedEdges534 = Union[ Flatten[Map[getEdgesFromFace, selectedFaces534], 1], SameTest -> sameCenter];
+Print["deduping 534 vertices"];
+selectedVertices534 = Union[ Flatten[selectedFaces534, 1], SameTest -> ApproxSamePoint];
+
+(* selectedEdges534 = Select[edges534, #[[1]][[1]] <= maxHeight && #[[2]][[1]] <= maxHeight &];
+selectedVertices534 = Select[vertices534, #[[1]] <= maxHeight &];
+ *)
+Print["filtered 534 Counts: cells, faces, edges, vertices"];
+Print[Map[Length, {selectedCells534, selectedFaces534, selectedEdges534, selectedVertices534}]];
+
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
@@ -386,49 +370,33 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	];
 
 	If[model == "poincare",
-		Print["There are " <> IntegerString[Length[componentEdges]] <> " component edges before split."];
-		norm = HNorm[componentEdges[[1]][[1]]];
-		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, componentEdges], 1];
-		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
-		Print["There are " <> IntegerString[Length[splitEdges]] <> " component edges after split."];
-		componentEdges = splitEdges;
+		splitCompEdges = {};
 
-		Print["There are " <> IntegerString[Length[componentEdges2]] <> " secondary component edges before split."];
-		norm = HNorm[componentEdges2[[1]][[1]]];
-		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, componentEdges2], 1];
-		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
-		Print["There are " <> IntegerString[Length[splitEdges]] <> " secondary component edges after split."];
-		componentEdges2 = splitEdges;
-
-		If[Length[cycle1] > 0,
-			Print["There are " <> IntegerString[Length[cycleEdges]] <> " cycle edges before split."];
-			norm = HNorm[cycleEdges[[1]][[1]]];
-			splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, cycleEdges], 1];
+		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+			edges = componentEdges[[compIndex]];
+			norm = HNorm[edges[[1]][[1]]];
+			splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1];
 			splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
-			Print["There are " <> IntegerString[Length[splitEdges]] <> " cycle edges after split."];
-			cycleEdges = splitEdges;
+			AppendTo[splitCompEdges, splitEdges]
 		];
+
+		(* split 534 edges *)
+		norm = HNorm[selectedEdges534[[1]][[1]]];
+		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, selectedEdges534], 1];
+		splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}];
+
+		componentEdges = splitCompEdges;
+		selectedEdges534 = splitEdges;
 	];
 
+	vertices = Apply[Join, componentVertices];
 	range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor;
 	thickness = range * 0.008;
 	thicknessDecayExponent = 1;
 
-	color = colorMap[{p,q,r}];
-
 	graphElements = {
 			{
-				Opacity[1], FaceForm[color], 
-				Table[
-		            Cylinder[
-		                Map[projectTo3d, componentEdges[[edgeIndex]]], 
-		                thickness * 5/(1 + componentEdges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + componentEdges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
-		            ], 
-		            {edgeIndex, 1, Length[componentEdges]}
-		        ]
-			},
-			{
-				Opacity[1], FaceForm[Cyan], 
+				Opacity[1], FaceForm[colorVertices], 
 				Table[
 		            Sphere[
 		                projectTo3d[vertices[[vIndex]]],
@@ -439,53 +407,49 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 			}
 		};
 
-	altColor = Purple;
-	If[color == Purple, altColor = Red];
 
-	If[plotTwoEdges,
-		AppendTo[graphElements, {
-				Opacity[1], FaceForm[altColor], 
-				Table[
-		            Cylinder[
-		                Map[projectTo3d, componentEdges2[[edgeIndex]]], 
-		                thickness * 5/(1 + componentEdges2[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + componentEdges2[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
-		            ], 
-		            {edgeIndex, 1, Length[componentEdges2]}
-		        ]
-			}]
+	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+		If[displayCompIndex == 0 || displayCompIndex == compIndex,
+			edges = componentEdges[[compIndex]];
+			color = colors[[compIndex]];
+			AppendTo[graphElements,
+				{
+					Opacity[1], FaceForm[color], 
+					Table[
+			            Cylinder[
+			                Map[projectTo3d, edges[[edgeIndex]]], 
+			                thickness * 5/(1 + edges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+			            ], 
+			            {edgeIndex, 1, Length[edges]}
+			        ]
+				}
+			];
+		];
 	];
 
-	If[highlightCycle && Length[cycle1] > 0,
-		AppendTo[graphElements, {
-				Opacity[1], FaceForm[Green], 
+	If[show534,
+		AppendTo[graphElements,
+			{
+				Opacity[1], FaceForm[color534], 
 				Table[
 		            Cylinder[
-		                Map[projectTo3d, cycleEdges[[edgeIndex]]], 
-		                thickness * 9/(1 + cycleEdges[[edgeIndex]][[1]][[1]]^(thicknessDecayExponent/2) + cycleEdges[[edgeIndex]][[2]][[1]]^(thicknessDecayExponent/2))
+		                Map[projectTo3d, selectedEdges534[[edgeIndex]]], 
+		                thickness * 5/(1 + selectedEdges534[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + selectedEdges534[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
 		            ], 
-		            {edgeIndex, 1, Length[cycleEdges]}
+		            {edgeIndex, 1, Length[selectedEdges534]}
 		        ]
-			}];
-		AppendTo[graphElements, {
-				Opacity[1], FaceForm[Darker[Green]], 
-				Table[
-		            Sphere[
-		                projectTo3d[cyclePoints[[vIndex]]],
-		                thickness * 18/(1 + cyclePoints[[vIndex]][[1]]^(thicknessDecayExponent/2))
-		            ], 
-		            {vIndex, 1, Length[cyclePoints]}
-		        ]
-			}]
+			}
+		];
 	];
 
 	graph = Graphics3D[
 		graphElements,
-		ViewPoint -> {3, -4, 1}*30,
+		ViewPoint -> {3, -3.5, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
 
-	outputFileName = shape <> "_" <> model <> "_component_" <> IntegerString[componentIndex] <> "_" <> If[plotTwoEdges, "two_edges_", ""] <> If[highlightCycle, "cycle_", ""] <>  IntegerString[cellThreshold] <> ".png";
+	outputFileName = "compound_534_435_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <>".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
