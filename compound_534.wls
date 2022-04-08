@@ -50,6 +50,9 @@ Rotation[t_] :=
   {0, -Sin[t], Cos[t]}
 };
 
+cellCenterToOrigin = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{-{1, 1, 1}, {1, 0, 0}}]}}];
+Boost[boost_] := {{Cosh[boost], Sinh[boost], 0, 0}, {Sinh[boost], Cosh[boost], 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 centralReflect[point_, mirror_] := - HReflect[point, mirror];
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
@@ -99,53 +102,222 @@ getEdges[vertices_, ignoreLessThan_] := Module[
     edges
 ];
 
+getVertexFigureCoordinates[p_, q_, r_] := Module[
+	{},
 
-dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[1000] <> ".wl"}];
-If[FileExistsQ[dataFileName], 
-	data = Get[dataFileName],
-	Print["Cannot find data file "<> dataFileName];
-	Exit[]
+	vertexFigureCoordinates = {};
+
+	If[q == 3 && r == 4,
+		vertexFigureCoordinates = {
+			{1, 0, 0},
+			{0, 1, 0},
+			{0, 0, 1},
+			{0, 0, -1}
+		};
+	];
+
+	If[q == 3 && r == 5,
+		vertexFigureCoordinates = {
+			{phi, 1, 0},
+			{phi, -1, 0},
+			{1, 0, phi},
+			{1, 0, -phi}
+		};
+	];
+
+	If[q == 5 && r == 3,
+		vertexFigureCoordinates = {
+			{phi, 1/phi, 0},
+			{phi, -1/phi, 0},
+			{1, 1, 1},
+			{1, 1, -1}
+		};
+	];
+
+	Map[#/Norm[#]&, vertexFigureCoordinates]
 ];
 
-cells534 = data["cells"];
-faces534 = data["faces"];
-edges534 = data["edges"];
-vertices534 = data["vertices"];
-Print["534 Counts: cells, faces, edges, vertices"];
-Print[Map[Length, {cells534, faces534, edges534, vertices534}]];
+getMirrors[p_, q_, r_] := Module[
+	{},
+	piOverHpq = ArcCos[Sqrt[Cos[Pi/p]^2 + Cos[Pi/q]^2]]//Simplify;
+	piOverHqr = ArcCos[Sqrt[Cos[Pi/q]^2 + Cos[Pi/r]^2]]//Simplify;
 
-maxHeight534 = Max[Map[#[[1]]&, vertices534]];
-Print[maxHeight534];
+	(* chi: p0 and p2 *)
+	coshchi = Cos[Pi/p] Cos[Pi/q] Cos[Pi/r]/Sin[piOverHpq]/Sin[piOverHqr]//Simplify;
+	inner02 = coshchi;
 
+	(* psi: p1 and p2 *)
+	coshpsi = Sin[Pi/p] Cos[Pi/r]/Sin[piOverHpq]//Simplify;
+	inner12 = coshpsi;
 
-dataFileName = FileNameJoin[{dataFolder, "hyper_4_3_5" <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
-If[FileExistsQ[dataFileName], 
-	data = Get[dataFileName],
-	Print["Cannot find data file "<> dataFileName];
-	Exit[]
+	(* phi: p0 and p1, 2phi: from p0 to p1 to another p0. edge length *)
+	coshphi = Cos[Pi/p] Sin[Pi/r]/Sin[piOverHqr]//Simplify;
+	inner01 = coshphi;
+	cosh2phi = 2 coshphi^2 - 1//Simplify;
+	sinh2phi = Sqrt[cosh2phi^2 - 1]//Simplify;
+
+	normalizedVertexFigureCoordinates = getVertexFigureCoordinates[p, q, r];
+
+	(* vertex first *)
+	vertex1 = {1, 0, 0, 0};
+
+	seedVertices = Map[{cosh2phi, sinh2phi #[[1]], sinh2phi #[[2]], sinh2phi #[[3]]}&, normalizedVertexFigureCoordinates];
+	(* Print["seedVertices"]; *)
+	mirrors = {
+		seedVertices[[1]] - vertex1,
+		seedVertices[[1]] - seedVertices[[2]],
+		seedVertices[[2]] - seedVertices[[3]],
+		seedVertices[[3]] - seedVertices[[4]]
+	};
+	mirrors
 ];
 
-cells435 = data["cells"];
-faces435 = data["faces"];
-edges435 = data["edges"];
-vertices435 = data["vertices"];
-Print["435 Counts: cells, faces, edges, vertices"];
-Print[Map[Length, {cells435, faces435, edges435, vertices435}]];
+getAllComponentsThroughCache[heightThreshold_] := Module[
+	{data, subsetDataFileName},
+	data = <||>;
+	subsetDataFileName = FileNameJoin[{dataFolder, "compound_534_435_" <> IntegerString[heightThreshold] <> ".wl"}];
+	If[FileExistsQ[subsetDataFileName], 
+      Print["Reading from from " <> subsetDataFileName];
+      data = Get[subsetDataFileName],
+      (* file do not exist *)
+      Print["Creating data for " <> subsetDataFileName];
+      data = getAllComponents[heightThreshold];
+      Save[subsetDataFileName, data];
+      Print["Saved data to " <> subsetDataFileName];
+  ];
+  data
+];
 
-maxHeight435 = Max[Map[#[[1]]&, vertices435]];
-Print[maxHeight435];
+getAllComponents[heightThreshold_] := Module[
+	{
+		dataFileName, cells534, faces534, edges534, vertices534, cells435, faces435, edges435,
+		vertices435, maxHeight435
+	},
 
-only435 = Complement[vertices435, vertices534, SameTest -> ApproxSamePoint];
-Print["only in 435"];
-Print[Length[only435]];
+	dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[1000] <> ".wl"}];
+	If[FileExistsQ[dataFileName], 
+		data = Get[dataFileName],
+		Print["Cannot find data file "<> dataFileName];
+		Exit[]
+	];
 
-Print[Min[Map[#[[1]]&, only435]]];
-Print[Max[Map[#[[1]]&, only435]]];
+	cells534 = data["cells"];
+	faces534 = data["faces"];
+	edges534 = data["edges"];
+	vertices534 = data["vertices"];
+	Print["534 Counts: cells, faces, edges, vertices"];
+	Print[Map[Length, {cells534, faces534, edges534, vertices534}]];
 
+	dataFileName = FileNameJoin[{dataFolder, "hyper_4_3_5" <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+	If[FileExistsQ[dataFileName], 
+		data = Get[dataFileName],
+		Print["Cannot find data file "<> dataFileName];
+		Exit[]
+	];
 
+	cells435 = data["cells"];
+	faces435 = data["faces"];
+	edges435 = data["edges"];
+	vertices435 = data["vertices"];
+	Print["435 Counts: cells, faces, edges, vertices"];
+	Print[Map[Length, {cells435, faces435, edges435, vertices435}]];
 
-intVertices = Intersection[vertices435, vertices534, SameTest -> ApproxSamePoint];
-Print[Length[intVertices]];
+	maxHeight435 = Max[Map[#[[1]]&, vertices435]];
+	Print[maxHeight435];
+
+	cellCenter1 = HNormalize[getCellCenter[cells534[[1]]], 1];
+	faceCenter1 = HNormalize[Mean[cells534[[1]][[1]]], 1];
+
+	transformedCenter = cellCenter1.Transpose[cellCenterToOrigin];
+	setup = Transpose[cellCenterToOrigin].Boost[-ArcCosh[transformedCenter[[1]]]];
+	rotation3dDirection = (faceCenter1.setup)[[Range[2, 4]]];
+	order5Rotation = ArrayFlatten[{{1, 0}, {0, RotationMatrix[2 Pi/5, rotation3dDirection]}}];
+	componentVertices = Table[vertices435.setup.MatrixPower[order5Rotation, k].Inverse[setup], {k, 0, 4}];
+	componentEdges = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, edges435], {k, 0, 4}];
+	componentFaces = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, faces435], {k, 0, 4}];
+	componentCells = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, cells435], {k, 0, 4}];
+
+	componentEdgeCenters = Map[Mean, componentEdges, {2}];
+	componentFaceCenters = Map[Mean, componentFaces, {2}];
+	componentCellCenters = Map[getCellCenter, componentCells, {2}];
+
+	mirrors = getMirrors[5, 3, 4];
+	mirrorMap = Table[0, {c1, Length[componentEdgeCenters]}, {m, Length[mirrors]}];
+	For[c1 = 1, c1 <= Length[componentEdgeCenters], c1++,
+	  For[m = 1, m <= Length[mirrors], m++,
+	   mirrorMap[[c1]][[m]] =
+	    Select[Range[Length[componentEdgeCenters]],
+	      Length[
+	         Intersection[
+	          Map[HReflect[#, mirrors[[m]]] &, 
+	           componentEdgeCenters[[c1]][[Range[20]]]], 
+	          componentEdgeCenters[[#]], SameTest -> ApproxSamePoint]] > 0 &][[1]]
+	   ]];
+
+	Print[mirrorMap];
+
+	smallComponents = Table[Select[componentCells[[k]], getCellCenter[#][[1]] < heightThreshold &], {k, Length[componentCells]}];
+
+	Print[Length /@ smallComponents];
+
+	countStart = -1;
+	For[i = 0, i < 10 && countStart != Total[Map[Length, smallComponents]], i++,
+		countStart = Total[Map[Length, smallComponents]];
+		For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
+			For[c1 = 1, c1 <= 5, c1++,
+				newCells = Map[HReflect[#, mirrors[[mirrorIndex]]] &, smallComponents[[c1]], {3}];
+				targetIndex = mirrorMap[[c1]][[mirrorIndex]];
+				smallComponents[[targetIndex]] = Union[smallComponents[[targetIndex]], newCells, SameTest -> sameCellCenter];
+			];
+		];
+		Print[{i, Length /@ smallComponents, countStart, Total[Map[Length, smallComponents]]}];
+	];
+
+	componentFaces = Map[Union[Flatten[#, 1], SameTest -> sameCenter] &, smallComponents];
+	componentEdges = Map[Union[Flatten[Map[getEdgesFromFace, #], 1], SameTest -> sameCenter]&, componentFaces];
+	componentVertices = Map[Union[Flatten[#, 1], SameTest -> ApproxSamePoint]&, componentFaces];
+
+	Print["Debugging data"];
+	tally = Tally[Apply[Join, componentVertices], ApproxSamePoint];
+	Print[Sort[Tally[Map[#[[2]] &, tally]]]];
+
+	Print["Multiplicity of vertices"];
+	dup1 = Map[#[[1]] &, Select[tally, #[[2]] == 1 &]];
+	dup2 = Map[#[[1]] &, Select[tally, #[[2]] == 2 &]];
+	Print[{Min[Map[#[[1]] &, dup1]], Max[Map[#[[1]] &, dup1]]}];
+	Print[{Min[Map[#[[1]] &, dup2]], Max[Map[#[[1]] &, dup2]]}];
+
+	Print["Vertices in 435 compound that are not in {5,3,4}. Should be 0s"];
+	dup1NotIn534 = Complement[dup1, vertices534, SameTest -> ApproxSamePoint];
+	dup2NotIn534 = Complement[dup2, vertices534, SameTest -> ApproxSamePoint];
+	Print[Map[Length, {dup1NotIn534, dup2NotIn534}]];
+
+	Print["534 not covered by compounds. Heights should be large"];
+	compDup2 = Complement[Select[vertices534, #[[1]] < heightThreshold * 2 &], dup2, SameTest -> ApproxSamePoint];
+	compDup12 = Complement[Select[vertices534, #[[1]] < heightThreshold * 2 &], dup1, dup2, SameTest -> ApproxSamePoint];
+	Print[{compDup2 // Length, compDup12 // Length}];
+	Print[{Min[Map[#[[1]] &, compDup2]], Max[Map[#[[1]] &, compDup2]]}];
+	Print[{Min[Map[#[[1]] &, compDup12]], Max[Map[#[[1]] &, compDup12]]}];
+
+	data = <||>;
+	data["componentCells"] = smallComponents;
+	data["componentFaces"] = componentFaces;
+	data["componentEdges"] = componentEdges;
+	data["componentVertices"] = componentVertices;
+	data
+];
+
+data = getAllComponentsThroughCache[10];
+
+componentCells = data["componentCells"];
+componentFaces = data["componentFaces"];
+componentEdges = data["componentEdges"];
+componentVertices = data["componentVertices"];
+
+Print[Map[Length, componentCells]];
+Print[Map[Length, componentFaces]];
+Print[Map[Length, componentEdges]];
+Print[Map[Length, componentVertices]];
 
 
 

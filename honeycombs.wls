@@ -223,11 +223,6 @@ GetDataThroughCache[p, q, r] := Module[
 			Print[heightTally];
 			Print[tallyCounts];
 
-(* 			faces = Join[ Flatten[cells, 1]];
-			edges = Join[ Flatten[Map[getEdgesFromFace, faces], 1] ];
-			vertices = Join[ Flatten[faces,1]];
- *)
-
  			Print["deduping faces"];
 			faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
 			Print["deduping edges"];
