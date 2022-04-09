@@ -66,7 +66,7 @@ ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, eps
 ApproxSamePointLoose[point1_, point2_] := Round[point1, 10 epsilon] == Round[point2, 10 epsilon];
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
-sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
+sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 
@@ -353,8 +353,8 @@ selectedVertices534 = Union[ Flatten[selectedFaces534, 1], SameTest -> ApproxSam
 (* selectedEdges534 = Select[edges534, #[[1]][[1]] <= maxHeight && #[[2]][[1]] <= maxHeight &];
 selectedVertices534 = Select[vertices534, #[[1]] <= maxHeight &];
  *)
-Print["filtered 534 Counts: cells, faces, edges, vertices"];
-Print[Map[Length, {selectedCells534, selectedFaces534, selectedEdges534, selectedVertices534}]];
+Print["filtered 534 Counts: faces, edges, vertices"];
+Print[Map[Length, {selectedFaces534, selectedEdges534, selectedVertices534}]];
 
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,

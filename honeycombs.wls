@@ -215,26 +215,26 @@ GetDataThroughCache[p, q, r] := Module[
       (* file do not exist *)
       Print["Creating data for " <> dataFileName];
 
-			cells = getCells[p, q, r, cellThreshold];
-			cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
-			heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
-			tallyCounts = Map[#[[2]]&, heightTally];
+		cells = getCells[p, q, r, cellThreshold];
+		cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+		heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+		tallyCounts = Map[#[[2]]&, heightTally];
 
-			Print[heightTally];
-			Print[tallyCounts];
+		Print[heightTally];
+		Print[tallyCounts];
 
- 			Print["deduping faces"];
-			faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
-			Print["deduping edges"];
-			edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
-			Print["deduping vertices"];
-			vertices = Union[ Flatten[faces,1], SameTest -> ApproxSamePoint];
-			data = <|
-				"cells" -> cells,
-				"faces" -> faces,
-				"edges" -> edges,
-				"vertices" -> vertices
-			|>;
+		Print["deduping faces"];
+		faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
+		Print["deduping edges"];
+		edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
+		Print["deduping vertices"];
+		vertices = Union[ Flatten[faces,1], SameTest -> ApproxSamePoint];
+		data = <|
+			"cells" -> cells,
+			"faces" -> faces,
+			"edges" -> edges,
+			"vertices" -> vertices
+		|>;
 
       Save[dataFileName, data];
       Print["Saved data " <> dataFileName];
