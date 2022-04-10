@@ -173,7 +173,7 @@ getMirrors[p_, q_, r_] := Module[
 getAllComponentsThroughCache[heightThreshold_] := Module[
 	{data, subsetDataFileName},
 	data = <||>;
-	subsetDataFileName = FileNameJoin[{dataFolder, "compound_534_435_" <> IntegerString[heightThreshold] <> ".wl"}];
+	subsetDataFileName = FileNameJoin[{dataFolder, "compound_534_435_cell_first_" <> IntegerString[heightThreshold] <> ".wl"}];
 	If[FileExistsQ[subsetDataFileName], 
       Print["Reading from from " <> subsetDataFileName];
       data = Get[subsetDataFileName],
@@ -230,19 +230,28 @@ getAllComponents[heightThreshold_] := Module[
 	setup = Transpose[cellCenterToOrigin].Boost[-ArcCosh[transformedCenter[[1]]]];
 	rotation3dDirection = (faceCenter1.setup)[[Range[2, 4]]];
 	order5Rotation = ArrayFlatten[{{1, 0}, {0, RotationMatrix[4 Pi/5, rotation3dDirection]}}];
-	componentVertices = Table[vertices435.setup.MatrixPower[order5Rotation, k].Inverse[setup], {k, 0, 4}];
-	componentEdges = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, edges435], {k, 0, 4}];
-	componentFaces = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, faces435], {k, 0, 4}];
-	componentCells = Table[Map[#.setup.MatrixPower[order5Rotation, k].Inverse[setup]&, cells435], {k, 0, 4}];
+
+	componentVertices = Table[vertices435.setup.MatrixPower[order5Rotation, k], {k, 0, 4}];
+	componentEdges = Table[Map[#.setup.MatrixPower[order5Rotation, k]&, edges435], {k, 0, 4}];
+	componentFaces = Table[Map[#.setup.MatrixPower[order5Rotation, k]&, faces435], {k, 0, 4}];
+	componentCells = Table[Map[#.setup.MatrixPower[order5Rotation, k]&, cells435], {k, 0, 4}];
 
 	componentEdgeCenters = Map[Mean, componentEdges, {2}];
 	componentFaceCenters = Map[Mean, componentFaces, {2}];
 	componentCellCenters = Map[getCellCenter, componentCells, {2}];
 
-	mirrors = getMirrors[5, 3, 4];
+	mirrors = getMirrors[4, 3, 5];
 	mirrorMap = Table[0, {c1, Length[componentEdgeCenters]}, {m, Length[mirrors]}];
 	For[c1 = 1, c1 <= Length[componentEdgeCenters], c1++,
 	  For[m = 1, m <= Length[mirrors], m++,
+	  	Print[{c1, m}];
+	   Print[Select[Range[Length[componentEdgeCenters]],
+	      Length[
+	         Intersection[
+	          Map[HReflect[#, mirrors[[m]]] &, 
+	           componentEdgeCenters[[c1]][[Range[20]]]], 
+	          componentEdgeCenters[[#]], SameTest -> ApproxSamePoint]] > 0 &]];
+
 	   mirrorMap[[c1]][[m]] =
 	    Select[Range[Length[componentEdgeCenters]],
 	      Length[
