@@ -228,6 +228,15 @@ getAllComponents[heightThreshold_] := Module[
 
 	transformedCenter = cellCenter1.Transpose[cellCenterToOrigin];
 	setup = Transpose[cellCenterToOrigin].Boost[-ArcCosh[transformedCenter[[1]]]];
+	faces534CellFirst = Map[#.setup &, faces534];
+	faces534CellFirst = Sort[faces534CellFirst, Mean[#1][[1]] < Mean[#2][[1]]&][[Range[12]]];
+	sampleFaceCenter = Mean[faces534CellFirst[[1]]];
+	Print[sampleFaceCenter];
+	faceToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{sampleFaceCenter[[Range[2,4]]], {0, 0, 1}}]}}];
+	setup = setup.Transpose[faceToZaxis];
+	faces534CellFirst = Map[#.setup &, faces534];
+	faces534CellFirst = Sort[faces534CellFirst, Mean[#1][[1]] < Mean[#2][[1]]&][[Range[12]]];
+
 	rotation3dDirection = (faceCenter1.setup)[[Range[2, 4]]];
 	order5Rotation = ArrayFlatten[{{1, 0}, {0, RotationMatrix[4 Pi/5, rotation3dDirection]}}];
 
@@ -240,18 +249,20 @@ getAllComponents[heightThreshold_] := Module[
 	componentFaceCenters = Map[Mean, componentFaces, {2}];
 	componentCellCenters = Map[getCellCenter, componentCells, {2}];
 
-	mirrors = getMirrors[4, 3, 5];
+
+	vertices534CellFirst = vertices534.setup;
+	vertices534CellFirst = Sort[vertices534CellFirst][[Range[20]]];
+	sampleVertex = vertices534CellFirst[[1]];
+	edges534CellFirst = Map[#.setup &, edges534];
+	(* {5,3} has 30 edges *)
+	edges534CellFirst = Sort[edges534CellFirst, Mean[#1][[1]] < Mean[#2][[1]]&][[Range[30]]];
+	sampleEdges = Select[edges534CellFirst, Length[Intersection[#, {sampleVertex}, SameTest -> ApproxSamePoint]] > 0 &];
+	otherVertices = Map[Complement[#, {sampleVertex}, SameTest -> ApproxSamePoint][[1]]&, sampleEdges];
+	mirrors = Map[(sampleVertex - #)&, otherVertices];
+
 	mirrorMap = Table[0, {c1, Length[componentEdgeCenters]}, {m, Length[mirrors]}];
 	For[c1 = 1, c1 <= Length[componentEdgeCenters], c1++,
 	  For[m = 1, m <= Length[mirrors], m++,
-	  	Print[{c1, m}];
-	   Print[Select[Range[Length[componentEdgeCenters]],
-	      Length[
-	         Intersection[
-	          Map[HReflect[#, mirrors[[m]]] &, 
-	           componentEdgeCenters[[c1]][[Range[20]]]], 
-	          componentEdgeCenters[[#]], SameTest -> ApproxSamePoint]] > 0 &]];
-
 	   mirrorMap[[c1]][[m]] =
 	    Select[Range[Length[componentEdgeCenters]],
 	      Length[
@@ -261,16 +272,18 @@ getAllComponents[heightThreshold_] := Module[
 	          componentEdgeCenters[[#]], SameTest -> ApproxSamePoint]] > 0 &][[1]]
 	   ]];
 
+	Print["mirrorMap"];
 	Print[mirrorMap];
 
 	smallComponents = Table[Select[componentCells[[k]], getCellCenter[#][[1]] < heightThreshold &], {k, Length[componentCells]}];
 
+	Print["smallComponents counts"];
 	Print[Length /@ smallComponents];
 
 	countStart = -1;
 	For[i = 0, i < 10 && countStart != Total[Map[Length, smallComponents]], i++,
 		countStart = Total[Map[Length, smallComponents]];
-		For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
+		For[mirrorIndex = 3, mirrorIndex >= 1, mirrorIndex--,
 			For[c1 = 1, c1 <= 5, c1++,
 				newCells = Map[HReflect[#, mirrors[[mirrorIndex]]] &, smallComponents[[c1]], {3}];
 				targetIndex = mirrorMap[[c1]][[mirrorIndex]];
@@ -295,22 +308,35 @@ getAllComponents[heightThreshold_] := Module[
 	Print[{Min[Map[#[[1]] &, dup2]], Max[Map[#[[1]] &, dup2]]}];
 
 	Print["Vertices in 435 compound that are not in {5,3,4}. Should be 0s"];
-	dup1NotIn534 = Complement[dup1, vertices534, SameTest -> ApproxSamePoint];
-	dup2NotIn534 = Complement[dup2, vertices534, SameTest -> ApproxSamePoint];
+	dup1NotIn534 = Complement[dup1, vertices534.setup, SameTest -> ApproxSamePoint];
+	dup2NotIn534 = Complement[dup2, vertices534.setup, SameTest -> ApproxSamePoint];
 	Print[Map[Length, {dup1NotIn534, dup2NotIn534}]];
 
 	Print["534 not covered by compounds. Heights should be large"];
-	compDup2 = Complement[Select[vertices534, #[[1]] < heightThreshold * 2 &], dup2, SameTest -> ApproxSamePoint];
-	compDup12 = Complement[Select[vertices534, #[[1]] < heightThreshold * 2 &], dup1, dup2, SameTest -> ApproxSamePoint];
+	compDup2 = Complement[Select[vertices534.setup, #[[1]] < heightThreshold * 2 &], dup2, SameTest -> ApproxSamePoint];
+	compDup12 = Complement[Select[vertices534.setup, #[[1]] < heightThreshold * 2 &], dup1, dup2, SameTest -> ApproxSamePoint];
 	Print[{compDup2 // Length, compDup12 // Length}];
 	Print[{Min[Map[#[[1]] &, compDup2]], Max[Map[#[[1]] &, compDup2]]}];
 	Print[{Min[Map[#[[1]] &, compDup12]], Max[Map[#[[1]] &, compDup12]]}];
+
+	(* select 534 elements *)
+	filterFace[face_] := Mean[Map[#[[1]]&, face]] <= heightThreshold * 1.3;
+	faces534CellFirst = Map[#.setup &, faces534];
+	faces534CellFirst = Select[faces534CellFirst, filterFace];
+	
+	Print["deduping 534 edges"];
+	edges534CellFirst = Union[ Flatten[Map[getEdgesFromFace, faces534CellFirst], 1], SameTest -> sameCenter];
+	Print["deduping 534 vertices"];
+	vertices534CellFirst = Union[ Flatten[faces534CellFirst, 1], SameTest -> ApproxSamePoint];
 
 	data = <||>;
 	data["componentCells"] = smallComponents;
 	data["componentFaces"] = componentFaces;
 	data["componentEdges"] = componentEdges;
 	data["componentVertices"] = componentVertices;
+	data["convexHullFaces"] = faces534CellFirst;
+	data["convexHullEdges"] = edges534CellFirst;
+	data["convexHullVertices"] = vertices534CellFirst;
 	data
 ];
 
@@ -320,6 +346,7 @@ componentCells = data["componentCells"];
 componentFaces = data["componentFaces"];
 componentEdges = data["componentEdges"];
 componentVertices = data["componentVertices"];
+selectedEdges534 = data["convexHullEdges"];
 
 Print["The counts of cells, faces, edges, and vertices for all components"];
 Print[Map[Length, componentCells]];
@@ -332,39 +359,6 @@ Print["Unique vertex count"];
 Print[Length[componentUniqueVertices]];
 
 maxHeight = Max[Map[#[[1]]&, componentUniqueVertices]] + epsilon;
-Print["maxHeight"];
-Print[maxHeight];
-
-
-dataFileName = FileNameJoin[{dataFolder, "hyper_5_3_4" <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
-If[FileExistsQ[dataFileName], 
-	data = Get[dataFileName],
-	Print["Cannot find data file "<> dataFileName];
-	Exit[]
-];
-
-cells534 = data["cells"];
-faces534 = data["faces"];
-edges534 = data["edges"];
-vertices534 = data["vertices"];
-Print["534 Counts: faces, edges, vertices"];
-Print[Map[Length, {faces534, edges534, vertices534}]];
-
-filterFace[face_] := Mean[Map[#[[1]]&, face]] <= heightThreshold * 1.3;
-selectedFaces534 = Select[faces534, filterFace];
-
-(* selectedFaces534 = Union[ Flatten[cells534, 1], SameTest -> sameCenter]; *)
-Print["deduping 534 edges"];
-selectedEdges534 = Union[ Flatten[Map[getEdgesFromFace, selectedFaces534], 1], SameTest -> sameCenter];
-Print["deduping 534 vertices"];
-selectedVertices534 = Union[ Flatten[selectedFaces534, 1], SameTest -> ApproxSamePoint];
-
-(* selectedEdges534 = Select[edges534, #[[1]][[1]] <= maxHeight && #[[2]][[1]] <= maxHeight &];
-selectedVertices534 = Select[vertices534, #[[1]] <= maxHeight &];
- *)
-Print["filtered 534 Counts: faces, edges, vertices"];
-Print[Map[Length, {selectedFaces534, selectedEdges534, selectedVertices534}]];
-
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
@@ -433,6 +427,21 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 			        ]
 				}
 			];
+
+			cells = componentCells[[compIndex]];
+			sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
+
+			If[Length[sampleCells] > 0 && model != "poincare",
+				sampleCell = sampleCells[[1]];
+				faces = sampleCell;
+				AppendTo[graphElements, 
+					{
+						Opacity[1], FaceForm[color], 
+						Table[Polygon[Map[projectTo3d, faces[[faceIndex]]]], 
+						{faceIndex, 1, Length[faces]}]
+				    }
+			    ];
+			];
 		];
 	];
 
@@ -458,7 +467,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		Lighting -> lighting
 	];
 
-	outputFileName = "compound_534_435_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <>".png";
+	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <>".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
