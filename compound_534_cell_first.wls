@@ -13,8 +13,8 @@ cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
 (* 4: 7 cells per component. 5: 31 cells per component *)
-(* heightThreshold = 4; *)
-heightThreshold = 5;
+heightThreshold = 4;
+(* heightThreshold = 5; *)
 
 show534 = False;
 (* show534 = True; *)
@@ -37,7 +37,7 @@ colors = {Red, Green, Blue, Purple, Yellow};
 color534 = Gray;
 colorVertices = Cyan;
 
-outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
+outputFolder = FileNameJoin[{imageFolder, "honeycombs", "compound_534_435"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 15;
@@ -322,10 +322,15 @@ getAllComponents[heightThreshold_] := Module[
 	Print[{Min[Map[#[[1]] &, compDup12]], Max[Map[#[[1]] &, compDup12]]}];
 
 	(* select 534 elements *)
-	filterFace[face_] := Mean[Map[#[[1]]&, face]] <= heightThreshold * 1.3;
-	faces534CellFirst = Map[#.setup &, faces534];
-	faces534CellFirst = Select[faces534CellFirst, filterFace];
-	
+	(* filterFace[face_] := Mean[Map[#[[1]]&, face]] <= heightThreshold * 1.3; *)
+	filterCell[cell_] := getCellCenter[cell][[1]] <= heightThreshold * 1.3;
+
+	cells534CellFirst = Map[#.setup &, cells534];
+	cells534CellFirst = Select[cells534CellFirst, filterCell];
+	Print["Got 534 cell first cells: " <> IntegerString[Length[cells534CellFirst]]];
+
+	Print["deduping 534 faces"];
+	faces534CellFirst = Union[Flatten[cells534CellFirst, 1], SameTest -> sameCenter];	
 	Print["deduping 534 edges"];
 	edges534CellFirst = Union[ Flatten[Map[getEdgesFromFace, faces534CellFirst], 1], SameTest -> sameCenter];
 	Print["deduping 534 vertices"];
@@ -336,6 +341,7 @@ getAllComponents[heightThreshold_] := Module[
 	data["componentFaces"] = componentFaces;
 	data["componentEdges"] = componentEdges;
 	data["componentVertices"] = componentVertices;
+	data["convexHullCells"] = cells534CellFirst;
 	data["convexHullFaces"] = faces534CellFirst;
 	data["convexHullEdges"] = edges534CellFirst;
 	data["convexHullVertices"] = vertices534CellFirst;
