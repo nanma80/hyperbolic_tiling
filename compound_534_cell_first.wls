@@ -14,7 +14,7 @@ cellThreshold = 300;
 
 (* 4: 7 cells per component. 5: 31 cells per component *)
 heightThreshold = 4;
-(* heightThreshold = 5; *)
+heightThreshold = 5;
 
 show534 = False;
 (* show534 = True; *)
@@ -47,6 +47,7 @@ ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pv
 
 phi = (1 + Sqrt[5])/2;
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
+splitFaceToTriangles[face_] := Table[{face[[1]], face[[k-1]], face[[k]]}, {k, 3, Length[face]}];
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
 HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
@@ -477,7 +478,6 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 
 	If[model == "poincare",
 		surfaces = {};
-		allPoincarePoints = {};
 		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 			If[displayCompIndex == 0 || displayCompIndex == compIndex,
 				cells = componentCells[[compIndex]];
@@ -485,22 +485,19 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 
 				If[Length[sampleCells] > 0,
 					sampleCell = sampleCells[[1]];
-					faces = sampleCell;
-					For[faceIndex = 1, faceIndex <= Length[faces], faceIndex++,
-						face = faces[[faceIndex]];
-						norm = HNorm[face[[1]]];
-						(* assume each face is a quadrilateral *)
-						planarPoints = Table[
-							l2 (l1 face[[1]] + (1-l1) face[[2]]) +
-							(1- l2) (l1 face[[4]] + (1-l1) face[[3]]),
-						{l1, 0, 1, 1/splitEdgeParts}, {l2, 0, 1, 1/splitEdgeParts}];
-						planarPoints = Flatten[planarPoints, 1];
-						normalizedPoints = Map[HNormalize[#, norm]&, planarPoints];
-						poincarePoints = Map[getPoincare, normalizedPoints];
-						allPoincarePoints = Join[allPoincarePoints, poincarePoints];
-						Print[Length[poincarePoints]];
-						surface = ListSurfacePlot3D[poincarePoints, Mesh->None, BoundaryStyle->Purple, MaxPlotPoints -> 50, 
-							MeshFunctions -> {0 &}, MeshShading -> { { colors[[compIndex]] , Opacity[1] } } 
+					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+						triangle = triangles[[triangleIndex]];
+						norm = HNorm[triangle[[1]]];
+						planarPoints[l1_, l2_] := 
+							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
+						poincarePoints[l1_, l2_] := getPoincare[normalizedPoints[l1, l2]];
+						color = Lighter[colors[[compIndex]], 0.05];
+						surface = ParametricPlot3D[
+							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+							PlotStyle -> {color, Opacity[1]}, Mesh -> None
 						];
 						AppendTo[surfaces, surface];
 					];
@@ -508,19 +505,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 			];
 		];
 
-		If[Length[allPoincarePoints] > 0,
-			Print["Length[allPoincarePoints]"];
-			Print[Length[allPoincarePoints]];
-			surface = ListSurfacePlot3D[allPoincarePoints, 
-				Mesh->None, BoundaryStyle->Purple,
-				MaxPlotPoints -> 100
-				];
-
-
-		];
-
-		(* graph = Show[ graph, surfaces[[4]] ]; *)
-		graph = Show[ graph, surface ];
+		graph = Apply[Show, Join[{graph}, surfaces]];
 
 	];
 
