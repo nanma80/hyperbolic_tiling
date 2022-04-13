@@ -5,8 +5,8 @@
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
 (* models = {"hyperboloid"}; *)
-models = {"klein"};
-(* models = {"poincare"}; *)
+(* models = {"klein"}; *)
+models = {"poincare"};
 
 cellThreshold = 100;
 cellThreshold = 300;
@@ -473,6 +473,55 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		ViewPoint -> {3, -3.5, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
+	];
+
+	If[model == "poincare",
+		surfaces = {};
+		allPoincarePoints = {};
+		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+			If[displayCompIndex == 0 || displayCompIndex == compIndex,
+				cells = componentCells[[compIndex]];
+				sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
+
+				If[Length[sampleCells] > 0,
+					sampleCell = sampleCells[[1]];
+					faces = sampleCell;
+					For[faceIndex = 1, faceIndex <= Length[faces], faceIndex++,
+						face = faces[[faceIndex]];
+						norm = HNorm[face[[1]]];
+						(* assume each face is a quadrilateral *)
+						planarPoints = Table[
+							l2 (l1 face[[1]] + (1-l1) face[[2]]) +
+							(1- l2) (l1 face[[4]] + (1-l1) face[[3]]),
+						{l1, 0, 1, 1/splitEdgeParts}, {l2, 0, 1, 1/splitEdgeParts}];
+						planarPoints = Flatten[planarPoints, 1];
+						normalizedPoints = Map[HNormalize[#, norm]&, planarPoints];
+						poincarePoints = Map[getPoincare, normalizedPoints];
+						allPoincarePoints = Join[allPoincarePoints, poincarePoints];
+						Print[Length[poincarePoints]];
+						surface = ListSurfacePlot3D[poincarePoints, Mesh->None, BoundaryStyle->Purple, MaxPlotPoints -> 50, 
+							MeshFunctions -> {0 &}, MeshShading -> { { colors[[compIndex]] , Opacity[1] } } 
+						];
+						AppendTo[surfaces, surface];
+					];
+				];
+			];
+		];
+
+		If[Length[allPoincarePoints] > 0,
+			Print["Length[allPoincarePoints]"];
+			Print[Length[allPoincarePoints]];
+			surface = ListSurfacePlot3D[allPoincarePoints, 
+				Mesh->None, BoundaryStyle->Purple,
+				MaxPlotPoints -> 100
+				];
+
+
+		];
+
+		(* graph = Show[ graph, surfaces[[4]] ]; *)
+		graph = Show[ graph, surface ];
+
 	];
 
 	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <>".png";
