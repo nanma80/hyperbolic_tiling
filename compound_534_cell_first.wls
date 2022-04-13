@@ -5,19 +5,20 @@
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
 (* models = {"hyperboloid"}; *)
-(* models = {"klein"}; *)
-models = {"poincare"};
+models = {"klein"};
+(* models = {"poincare"}; *)
 
 cellThreshold = 100;
 cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
 (* 4: 7 cells per component. 5: 31 cells per component *)
-heightThreshold = 4;
-heightThreshold = 5;
+heightThreshold = 2;
+(* heightThreshold = 4; *)
+(* heightThreshold = 5; *)
 
 show534 = False;
-(* show534 = True; *)
+show534 = True;
 
 argv = Rest @ $ScriptCommandLine;
 displayCompIndex = If[Length[argv] >= 1, 
