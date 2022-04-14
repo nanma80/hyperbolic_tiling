@@ -12,9 +12,9 @@ cellThreshold = 100;
 cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
-(* 4: 7 cells per component. 5: 31 cells per component *)
-heightThreshold = 2;
-(* heightThreshold = 4; *)
+(* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
+(* heightThreshold = 2; *)
+heightThreshold = 4;
 (* heightThreshold = 5; *)
 
 show534 = False;
@@ -253,7 +253,6 @@ getAllComponents[heightThreshold_] := Module[
 	componentFaceCenters = Map[Mean, componentFaces, {2}];
 	componentCellCenters = Map[getCellCenter, componentCells, {2}];
 
-
 	vertices534CellFirst = vertices534.setup;
 	vertices534CellFirst = Sort[vertices534CellFirst][[Range[20]]];
 	sampleVertex = vertices534CellFirst[[1]];
@@ -337,6 +336,26 @@ getAllComponents[heightThreshold_] := Module[
 	edges534CellFirst = Union[ Flatten[Map[getEdgesFromFace, faces534CellFirst], 1], SameTest -> sameCenter];
 	Print["deduping 534 vertices"];
 	vertices534CellFirst = Union[ Flatten[faces534CellFirst, 1], SameTest -> ApproxSamePoint];
+
+
+	cellCenters534 = Map[HNormalize[getCellCenter[#],1]&, cells534CellFirst];
+	edgeCenters534 = Map[HNormalize[Mean[#],1]&, edges534CellFirst];
+	componentCellCenters = Map[HNormalize[#, 1]&, componentCellCenters, {2}];
+	Print["Cell center comparison"];
+
+	cellCenterOverlap = Table[Length[Intersection[cellCenters534, componentCellCenters[[k]], SameTest -> ApproxSamePoint]], {k, 1, Length[componentCellCenters]}];
+	Print[cellCenterOverlap];
+
+	edgeCenterOverlap = Table[Length[Intersection[edgeCenters534, componentCellCenters[[k]], SameTest -> ApproxSamePoint]], {k, 1, Length[componentCellCenters]}];
+	Print[edgeCenterOverlap];
+
+	(*
+	height threshold = 4: edge center overlap/cell center overlap = 42/13 = 3.23
+	height threshold = 10: edge center overlap/cell center overlap = 83~93/41 = 2.0~2.2
+	height threshold = 20: ratio = 153/76=2.0, 163/83=1.96 etc
+		{76, 79, 84, 85, 83}
+		{153, 154, 160, 164, 163}
+	 *)
 
 	data = <||>;
 	data["componentCells"] = smallComponents;
