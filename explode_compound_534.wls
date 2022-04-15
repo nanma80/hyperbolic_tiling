@@ -190,7 +190,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 				Table[
 		            Sphere[
 		                projectTo3d[vertices[[vIndex]]],
-		                thickness * 10/(1 + vertices[[vIndex]][[1]]^thicknessDecayExponent)
+		                thickness * 10/(1 + (vertices[[vIndex]][[1]]/vertexNorm)^thicknessDecayExponent)
 		            ], 
 		            {vIndex, 1, Length[vertices]}
 		        ]
@@ -208,7 +208,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 					Table[
 			            Cylinder[
 			                Map[projectTo3d, edges[[edgeIndex]]], 
-			                thickness * 5/(1 + edges[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/vertexNorm)^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/vertexNorm)^thicknessDecayExponent)
 			            ], 
 			            {edgeIndex, 1, Length[edges]}
 			        ]
@@ -239,7 +239,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 				Table[
 		            Cylinder[
 		                Map[projectTo3d, edges534[[edgeIndex]]], 
-		                thickness * 5/(1 + edges534[[edgeIndex]][[1]][[1]]^thicknessDecayExponent + edges534[[edgeIndex]][[2]][[1]]^thicknessDecayExponent)
+		                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/vertexNorm)^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/vertexNorm)^thicknessDecayExponent)
 		            ], 
 		            {edgeIndex, 1, Length[edges534]}
 		        ]
@@ -288,7 +288,7 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		graph = Apply[Show, Join[{graph}, surfaces]];
 	];
 
-	outputFileName = IntegerString[explosionPercent, 10, 4] <> "_compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <>".png";
+	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <> "_" <> IntegerString[explosionPercent, 10, 4] <>".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
