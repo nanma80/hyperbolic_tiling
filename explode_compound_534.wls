@@ -8,17 +8,27 @@
 (* models = {"klein"}; *)
 models = {"poincare"};
 
+(* 
+explosion steps: 
+0: explode all cells
+1: move away the cells in 435 with height {2.995352392457251, 30}
+2: move away the cells in 435 and 534 {4.846581979279199, 12}, not showing {2.995352392457251, 30}
+ *)
+explosionStep = 1;
+
 cellThreshold = 100;
 cellThreshold = 300;
 (* cellThreshold = 1000; *)
 
 (* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
 (* heightThreshold = 2; *)
-heightThreshold = 4;
-(* heightThreshold = 5; *)
+(* heightThreshold = 4; *)
+heightThreshold = 5;
 
 show534 = False;
 show534 = True;
+
+showVertices = False;
 
 argv = Rest @ $ScriptCommandLine;
 displayCompIndex = If[Length[argv] >= 1, 
@@ -41,7 +51,7 @@ imageFolder = "images";
 epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
-rangeFactor = 0.8;
+rangeFactor = 1.25;
 colors = {Red, Green, Blue, Purple, Yellow};
 color534 = Gray;
 colorVertices = Cyan;
@@ -81,6 +91,7 @@ getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]
 sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
+getCellHeight[cell_] := getCellCenter[cell][[1]];
 
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
@@ -107,20 +118,52 @@ getAllComponentsThroughCache[heightThreshold_] := Module[
 data = getAllComponentsThroughCache[heightThreshold];
 
 componentCells = data["componentCells"];
-(* componentFaces = data["componentFaces"]; *)
-(* componentEdges = data["componentEdges"]; *)
-(* componentVertices = data["componentVertices"]; *)
-(* selectedEdges534 = data["convexHullEdges"]; *)
 cells534 = data["convexHullCells"];
 vertices534 = data["convexHullVertices"];
 
-(* range = Max[Map[Norm[projectTo3d[#]]&, vertices534]] * rangeFactor; *)
 range = 0.6;
 
-componentCellCenters = Map[getCellCenter, componentCells, {2}];
+componentCellCenterHeights = Apply[Join, Map[getCellHeight, componentCells, {2}]];
+cells534CenterHeights = Map[getCellHeight, cells534];
+componentHeightsTally = Sort[Tally[componentCellCenterHeights, ApproxSamePoint]];
+cells534HeightsTally = Sort[Tally[cells534CenterHeights, ApproxSamePoint]];
+Print["Heights of components and 534 before explosion"];
+Print[componentHeightsTally];
+Print[cells534HeightsTally];
 
-cells534 = Map[explodedCell[#, explosionFactor]&, cells534];
-componentCells = Map[explodedCell[#, explosionFactor]&, componentCells, {2}];
+(* 
+explode the cells: 
+when height threshold = 5:
+{{1.851229586821858, 5}, {2.995352392457251, 30}, {4.84658197927913, 120}}
+{{1.8512295868219169, 1}, {4.846581979279199, 12}}
+
+explosion steps: 
+0: explode all cells
+1: move away the cells in 435 with height {2.995352392457251, 30}
+2: move away the cells in 435 and 534 {4.846581979279199, 12}, not showing {2.995352392457251, 30}
+*)
+
+explodeCellsByStep[cells_, explosionFactor_, explosionStep_] := Module[
+	{inactiveCells, activeCells},
+
+	If[explosionStep == 0,
+			activeCells = Map[explodedCell[#, explosionFactor]&, cells];
+			inactiveCells = {},
+		If[explosionStep == 1,
+			inactiveCells = Select[cells, getCellHeight[#] < 2 && getCellHeight[#] > 4 &];
+			activeCells = Select[cells, getCellHeight[#] >= 2 && getCellHeight[#] <= 4 &],
+			(* explosionStep == 2 *)
+			inactiveCells = Select[cells, getCellHeight[#] < 2 &];
+			activeCells = Select[cells, getCellHeight[#] >= 4 &];
+		];
+	];
+	activeCells = Map[explodedCell[#, explosionFactor]&, activeCells];
+	Join[activeCells, inactiveCells]
+];
+
+cells534 = explodeCellsByStep[cells534, explosionFactor, explosionStep];
+componentCells = Map[explodeCellsByStep[#, explosionFactor, explosionStep]&, componentCells];
+
 vertexNorm = HNorm[cells534[[1]][[1]][[1]]];
 Print["vertexNorm"];
 Print[vertexNorm];
@@ -178,13 +221,51 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		edges534 = splitEdges;
 	];
 
+
+	surfaces = {};
+	If[model == "poincare",
+		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+			If[displayCompIndex == 0 || displayCompIndex == compIndex,
+				cells = componentCells[[compIndex]];
+				sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
+
+				If[Length[sampleCells] > 0,
+					sampleCell = sampleCells[[1]];
+					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+						triangle = triangles[[triangleIndex]];
+
+						planarPoints[l1_, l2_] := 
+							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], vertexNorm];
+						poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], vertexNorm];
+						color = Lighter[colors[[compIndex]], 0.05];
+						surface = ParametricPlot3D[
+							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+							PlotStyle -> {color, Opacity[1]}, Mesh -> None
+						];
+						AppendTo[surfaces, surface];
+					];
+				];
+			];
+		];
+		Print["sample cell vertex norm"];
+		Print[Norm[poincarePoints[0, 0]]];
+		range = Norm[poincarePoints[0, 0]] * rangeFactor;
+	];
+
 	vertices = Apply[Join, componentVertices];
 	(* range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor; *)
+
 	Print["Range of plot: " <> ToString[range]];
 	thickness = range * 0.008;
 	thicknessDecayExponent = 1.25;
 
-	graphElements = {
+	graphElements = {};
+
+	If[showVertices,
+		AppendTo[graphElements,
 			{
 				Opacity[1], FaceForm[colorVertices], 
 				Table[
@@ -195,8 +276,8 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		            {vIndex, 1, Length[vertices]}
 		        ]
 			}
-		};
-
+		];
+	];
 
 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 		If[displayCompIndex == 0 || displayCompIndex == compIndex,
@@ -254,41 +335,12 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		Lighting -> lighting
 	];
 
-	If[model == "poincare",
-		surfaces = {};
-		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-			If[displayCompIndex == 0 || displayCompIndex == compIndex,
-				cells = componentCells[[compIndex]];
-				sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
-
-				If[Length[sampleCells] > 0,
-					sampleCell = sampleCells[[1]];
-					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-						triangle = triangles[[triangleIndex]];
-
-						planarPoints[l1_, l2_] := 
-							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
-						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], vertexNorm];
-						poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], vertexNorm];
-						color = Lighter[colors[[compIndex]], 0.05];
-						surface = ParametricPlot3D[
-							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-							PlotStyle -> {color, Opacity[1]}, Mesh -> None
-						];
-						AppendTo[surfaces, surface];
-					];
-				];
-			];
-		];
-
-		Print["sample cell vertex norm"];
-		Print[Norm[poincarePoints[0, 0]]];
+	If[Length[surfaces] > 1,
 		graph = Apply[Show, Join[{graph}, surfaces]];
 	];
 
-	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <> "_" <> IntegerString[explosionPercent, 10, 4] <>".png";
+	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <> "_" <> IntegerString[explosionStep] <> "_"
+		<> IntegerString[explosionPercent, 10, 4] <>".png";
 
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
