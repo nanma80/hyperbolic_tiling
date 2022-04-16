@@ -5,8 +5,8 @@
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
 (* models = {"hyperboloid"}; *)
-models = {"klein"};
-(* models = {"poincare"}; *)
+(* models = {"klein"}; *)
+models = {"poincare"};
 
 cellThreshold = 100;
 cellThreshold = 300;
@@ -14,8 +14,9 @@ cellThreshold = 300;
 
 (* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
 (* heightThreshold = 2; *)
-heightThreshold = 4;
+(* heightThreshold = 4; *)
 (* heightThreshold = 5; *)
+heightThreshold = 7;
 
 show534 = False;
 show534 = True;
