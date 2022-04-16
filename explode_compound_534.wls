@@ -6,19 +6,15 @@
 (* models = {"klein", "poincare"}; *)
 (* models = {"hyperboloid"}; *)
 (* models = {"klein"}; *)
-models = {"poincare"};
+(* models = {"poincare"}; *)
 
 (* 
 explosion steps: 
 0: explode all cells
-1: move away the cells in 435 with height {2.995352392457251, 30}
-2: move away the cells in 435 and 534 {4.846581979279199, 12}, not showing {2.995352392457251, 30}
+1: move away the cells of 435 that don't share centers with any 534 cells
+2: hide the moving cells in step 1, and explode the other cells in 534 and 435
  *)
-explosionStep = 1;
-
-cellThreshold = 100;
-cellThreshold = 300;
-(* cellThreshold = 1000; *)
+explosionStep = 2;
 
 (* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
 (* heightThreshold = 2; *)
@@ -139,37 +135,47 @@ when height threshold = 5:
 
 explosion steps: 
 0: explode all cells
-1: move away the cells in 435 with height {2.995352392457251, 30}
-2: move away the cells in 435 and 534 {4.846581979279199, 12}, not showing {2.995352392457251, 30}
+1: move away the cells of 435 that don't share centers with any 534 cells
+2: hide the moving cells in step 1, and explode the other cells in 534 and 435
 *)
 
-explodeCellsByStep[cells_, explosionFactor_, explosionStep_] := Module[
+explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_] := Module[
 	{inactiveCells, activeCells},
 
 	If[explosionStep == 0,
-			activeCells = Map[explodedCell[#, explosionFactor]&, cells];
-			inactiveCells = {},
+			inactiveCells = {};
+			activeCells = cells,
 		If[explosionStep == 1,
-			inactiveCells = Select[cells, getCellHeight[#] < 2 && getCellHeight[#] > 4 &];
-			activeCells = Select[cells, getCellHeight[#] >= 2 && getCellHeight[#] <= 4 &],
+			inactiveCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
+			activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]==0 &],
 			(* explosionStep == 2 *)
-			inactiveCells = Select[cells, getCellHeight[#] < 2 &];
-			activeCells = Select[cells, getCellHeight[#] >= 4 &];
+			inactiveCells = {};
+			activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
 		];
 	];
 	activeCells = Map[explodedCell[#, explosionFactor]&, activeCells];
 	Join[activeCells, inactiveCells]
 ];
 
-cells534 = explodeCellsByStep[cells534, explosionFactor, explosionStep];
-componentCells = Map[explodeCellsByStep[#, explosionFactor, explosionStep]&, componentCells];
+componentCellCenters = Map[getCellCenter, componentCells, {2}];
+cells534Centers = Map[getCellCenter, cells534];
+
+cells534 = explodeCellsByStep[cells534, cells534Centers, explosionFactor, explosionStep];
+componentCells = Map[explodeCellsByStep[#, cells534Centers, explosionFactor, explosionStep]&, componentCells];
+
+(* 
+componentCellCenterHeights = Apply[Join, Map[getCellHeight, componentCells, {2}]];
+cells534CenterHeights = Map[getCellHeight, cells534];
+componentHeightsTally = Sort[Tally[componentCellCenterHeights, ApproxSamePoint]];
+cells534HeightsTally = Sort[Tally[cells534CenterHeights, ApproxSamePoint]];
+Print["Heights of components and 534 after explosion"];
+Print[componentHeightsTally];
+Print[cells534HeightsTally];
+ *)
 
 vertexNorm = HNorm[cells534[[1]][[1]][[1]]];
 Print["vertexNorm"];
 Print[vertexNorm];
-
-componentCellCenters = Map[getCellCenter, componentCells, {2}];
-cells534Centers = Map[getCellCenter, cells534];
 
 componentFaces = Map[Join[Flatten[#, 1]] &, componentCells];
 componentEdges = Map[Join[Flatten[Map[getEdgesFromFace, #], 1]]&, componentFaces];
@@ -190,170 +196,188 @@ Print[Map[Length, componentVertices]];
 Print["The counts of 534 cells, faces, edges, and vertices"];
 Print[Map[Length, {cells534, faces534, edges534, vertices534}]];
 
+projectTo3d[v_] := getPoincareExploded[v, HNorm[v]];
 
-For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
-	model = models[[modelIndex]];
-	projectTo3d[v_] := If[
-		model == "hyperboloid", 
-			getHyperboloid[v],
-		If[
-			model == "klein",
-				getKlein[v],
-				getPoincareExploded[v, vertexNorm]
-		]
+splitCompEdges = {};
+
+For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+	edges = componentEdges[[compIndex]];
+	splitEdges = {};
+	For[eid = 1, eid <= Length[edges], eid++,
+		edge = edges[[eid]];
+		norm = HNorm[edge[[1]]];
+		splitParts = splitEdge[edge, splitEdgeParts];
+		splitParts = Map[HNormalize[#, norm]&, splitParts, {2}];
+		splitEdges = Join[splitEdges, splitParts];
 	];
+	AppendTo[splitCompEdges, splitEdges]
+];
 
-	If[model == "poincare",
-		splitCompEdges = {};
+(* split 534 edges *)
+splitEdges = {};
+For[eid = 1, eid <= Length[edges534], eid++,
+	edge = edges534[[eid]];
+	norm = HNorm[edge[[1]]];
+	splitParts = splitEdge[edge, splitEdgeParts];
+	splitParts = Map[HNormalize[#, norm]&, splitParts, {2}];
+	splitEdges = Join[splitEdges, splitParts];
+];
 
-		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-			edges = componentEdges[[compIndex]];
-			splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1];
-			splitEdges = Map[HNormalize[#, vertexNorm]&, splitEdges, {2}];
-			AppendTo[splitCompEdges, splitEdges]
-		];
+componentEdges = splitCompEdges;
+edges534 = splitEdges;
 
-		(* split 534 edges *)
-		splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges534], 1];
-		splitEdges = Map[HNormalize[#, vertexNorm]&, splitEdges, {2}];
+surfaces = {};
+For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+	If[!show534 && (displayCompIndex == 0 || displayCompIndex == compIndex),
+		cells = componentCells[[compIndex]];
+		cells = Select[cells, Length[Intersection[{getCellCenter[#]}, cells534Centers, SameTest -> ApproxSamePoint ]]>0 &];
 
-		componentEdges = splitCompEdges;
-		edges534 = splitEdges;
-	];
+		(* sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ]; *)
 
-
-	surfaces = {};
-	If[model == "poincare",
-		For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-			If[displayCompIndex == 0 || displayCompIndex == compIndex,
-				cells = componentCells[[compIndex]];
-				sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
-
-				If[Length[sampleCells] > 0,
-					sampleCell = sampleCells[[1]];
-					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-						triangle = triangles[[triangleIndex]];
-
-						planarPoints[l1_, l2_] := 
-							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
-						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], vertexNorm];
-						poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], vertexNorm];
-						color = Lighter[colors[[compIndex]], 0.05];
-						surface = ParametricPlot3D[
-							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-							PlotStyle -> {color, Opacity[1]}, Mesh -> None
-						];
-						AppendTo[surfaces, surface];
-					];
+		For[cid = 1, cid <= Length[cells], cid++,
+			sampleCell = cells[[cid]];
+			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+				triangle = triangles[[triangleIndex]];
+				norm = HNorm[triangle[[1]]];
+				planarPoints[l1_, l2_] := 
+					l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
+				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
+				color = Lighter[colors[[compIndex]], 0.05];
+				surface = ParametricPlot3D[
+					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+					PlotStyle -> {color, Opacity[1]}, Mesh -> None
 				];
+				AppendTo[surfaces, surface];
+			];
+
+			If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+				range = Norm[poincarePoints[0, 0]] * rangeFactor;
 			];
 		];
-		Print["sample cell vertex norm"];
-		Print[Norm[poincarePoints[0, 0]]];
-		range = Norm[poincarePoints[0, 0]] * rangeFactor;
 	];
+];
 
+If[show534,
+	cells = cells534;
+	For[cid = 1, cid <= Length[cells], cid++,
+		sampleCell = cells[[cid]];
+		triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+		For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+			triangle = triangles[[triangleIndex]];
+			norm = HNorm[triangle[[1]]];
+			planarPoints[l1_, l2_] := 
+				l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+				(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+			normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
+			poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
+			color = Lighter[color534, 0.05];
+			surface = ParametricPlot3D[
+				poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+				PlotStyle -> {color, Opacity[1]}, Mesh -> None
+			];
+			AppendTo[surfaces, surface];
+		];
+
+		If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+			range = Norm[poincarePoints[0, 0]] * rangeFactor;
+		];
+	];
+];
+
+Print["Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
+
+Print["Range of plot: " <> ToString[range]];
+thickness = range * 0.008;
+thicknessDecayExponent = 1.25;
+
+graphElements = {};
+
+If[showVertices,
 	vertices = Apply[Join, componentVertices];
-	(* range = Max[Map[Norm[projectTo3d[#]]&, vertices]] * rangeFactor; *)
 
-	Print["Range of plot: " <> ToString[range]];
-	thickness = range * 0.008;
-	thicknessDecayExponent = 1.25;
+	AppendTo[graphElements,
+		{
+			Opacity[1], FaceForm[colorVertices], 
+			Table[
+	            Sphere[
+	                projectTo3d[vertices[[vIndex]]],
+	                thickness * 10/(1 + (vertices[[vIndex]][[1]]/HNorm[vertices[[vIndex]]] )^thicknessDecayExponent)
+	            ], 
+	            {vIndex, 1, Length[vertices]}
+	        ]
+		}
+	];
+];
 
-	graphElements = {};
-
-	If[showVertices,
+For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+	If[displayCompIndex == 0 || displayCompIndex == compIndex,
+		edges = componentEdges[[compIndex]];
+		color = colors[[compIndex]];
 		AppendTo[graphElements,
 			{
-				Opacity[1], FaceForm[colorVertices], 
-				Table[
-		            Sphere[
-		                projectTo3d[vertices[[vIndex]]],
-		                thickness * 10/(1 + (vertices[[vIndex]][[1]]/vertexNorm)^thicknessDecayExponent)
-		            ], 
-		            {vIndex, 1, Length[vertices]}
-		        ]
-			}
-		];
-	];
-
-	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-		If[displayCompIndex == 0 || displayCompIndex == compIndex,
-			edges = componentEdges[[compIndex]];
-			color = colors[[compIndex]];
-			AppendTo[graphElements,
-				{
-					Opacity[1], FaceForm[color], 
-					Table[
-			            Cylinder[
-			                Map[projectTo3d, edges[[edgeIndex]]], 
-			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/vertexNorm)^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/vertexNorm)^thicknessDecayExponent)
-			            ], 
-			            {edgeIndex, 1, Length[edges]}
-			        ]
-				}
-			];
-
-			cells = componentCells[[compIndex]];
-			sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
-
-			If[Length[sampleCells] > 0 && model != "poincare",
-				sampleCell = sampleCells[[1]];
-				faces = sampleCell;
-				AppendTo[graphElements, 
-					{
-						Opacity[1], FaceForm[color], 
-						Table[Polygon[Map[projectTo3d, faces[[faceIndex]]]], 
-						{faceIndex, 1, Length[faces]}]
-				    }
-			    ];
-			];
-		];
-	];
-
-	If[show534,
-		AppendTo[graphElements,
-			{
-				Opacity[1], FaceForm[color534], 
+				Opacity[1], FaceForm[color], 
 				Table[
 		            Cylinder[
-		                Map[projectTo3d, edges534[[edgeIndex]]], 
-		                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/vertexNorm)^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/vertexNorm)^thicknessDecayExponent)
+		                Map[projectTo3d, edges[[edgeIndex]]], 
+		                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
 		            ], 
-		            {edgeIndex, 1, Length[edges534]}
+		            {edgeIndex, 1, Length[edges]}
 		        ]
 			}
 		];
+
+		cells = componentCells[[compIndex]];
+		sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
 	];
-
-	graph = Graphics3D[
-		graphElements,
-		ViewPoint -> {3, -3.5, 1}*30,
-		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
-		Lighting -> lighting
-	];
-
-	If[Length[surfaces] > 1,
-		graph = Apply[Show, Join[{graph}, surfaces]];
-	];
-
-	outputFileName = "compound_534_435_cell_first_" <> model <> "_" <> IntegerString[heightThreshold] <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <> "_" <> IntegerString[explosionStep] <> "_"
-		<> IntegerString[explosionPercent, 10, 4] <>".png";
-
-	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
-
-	If[exportToPov,
-		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-		POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-		Run[cropCommand];
-		,
-		Export[outputFileName, graph]
-	];
-	Print["Saved the image to " <> outputFileName];
 ];
+
+AppendTo[graphElements,
+	{
+		Opacity[1], FaceForm[color534], 
+		Table[
+            Cylinder[
+                Map[projectTo3d, edges534[[edgeIndex]]], 
+                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/HNorm[edges534[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/HNorm[edges534[[edgeIndex]][[2]]])^thicknessDecayExponent)
+            ], 
+            {edgeIndex, 1, Length[edges534]}
+        ]
+	}
+];
+
+
+
+Print["Generated graph elements"];
+
+graph = Graphics3D[
+	graphElements,
+	ViewPoint -> {3, -3.5, 1}*30,
+	PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
+	Lighting -> lighting
+];
+
+If[Length[surfaces] > 1,
+	graph = Apply[Show, Join[{graph}, surfaces]];
+];
+
+Print["Defined graph"];
+
+outputFileName = "compound_534_435_cell_first_" <> If[displayCompIndex == 0, "_all_components", "_component_" <> IntegerString[displayCompIndex]] <> If[show534, "_show534", ""] <> "_" <> IntegerString[explosionStep] <> "_" <> IntegerString[explosionPercent, 10, 4] <>".png";
+
+outputFileName = FileNameJoin[{outputFolder, outputFileName}];
+cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
+
+If[exportToPov,
+	If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+	Print["Exporting to POV ray"];
+	POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+	Run[cropCommand];
+	,
+	Export[outputFileName, graph]
+];
+Print["Saved the image to " <> outputFileName];
 
 (* 
 some 435 cell centers coincide with 534 cell centers. The others coincide with 534 edge centers (after normalization)
