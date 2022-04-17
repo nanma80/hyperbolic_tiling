@@ -2,8 +2,8 @@
 
 (* Objective: visualize 2{5, 3, 4}[5{4, 3, 5}] *)
 
-maxExplosionFactor = 10.0;
-frameCount = 200;
+maxExplosionFactor = 5.0;
+frameCount = 50;
 
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
@@ -229,12 +229,11 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 	edges534 = splitEdges;
 
 	surfaces = {};
+	cells534Centers = Map[getCellCenter, cells534];
 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-		If[!show534 && (displayCompIndex == 0 || displayCompIndex == compIndex),
+		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			cells = componentCells[[compIndex]];
 			cells = Select[cells, Length[Intersection[{getCellCenter[#]}, cells534Centers, SameTest -> ApproxSamePoint ]]>0 &];
-
-			(* sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ]; *)
 
 			For[cid = 1, cid <= Length[cells], cid++,
 				sampleCell = cells[[cid]];
@@ -315,7 +314,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 	];
 
 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-		If[!show534 && (displayCompIndex == 0 || displayCompIndex == compIndex),
+		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			edges = componentEdges[[compIndex]];
 			color = colors[[compIndex]];
 			AppendTo[graphElements,
