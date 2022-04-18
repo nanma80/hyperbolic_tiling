@@ -243,7 +243,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 				cellHeight = getCellHeight[sampleCell];
 				opacity = getOpacityByHeight[cellHeight];
 				Print[{cellHeight, opacity}];
-
+				If[opacity == 0, Continue[]];
 				triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
 				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 					triangle = triangles[[triangleIndex]];
@@ -275,7 +275,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			cellHeight = getCellHeight[sampleCell];
 			opacity = getOpacityByHeight[cellHeight];
 			Print[{cellHeight, opacity}];
-
+			If[opacity == 0, Continue[]];
 			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
 			cellHeight = getCellHeight[sampleCell];
 
