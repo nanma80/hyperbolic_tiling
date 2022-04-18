@@ -2,8 +2,8 @@
 
 (* Objective: visualize 2{5, 3, 4}[5{4, 3, 5}] *)
 
-maxExplosionFactor = 5.0;
-frameCount = 50;
+maxExplosionFactor = 10.0;
+frameCount = 100;
 
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
@@ -96,6 +96,9 @@ sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
+opacityUpperLimit = 12.5;
+opacityLowerLimit = 11.5;
+getOpacityByHeight[height_] := If[height > opacityUpperLimit, 0, If[height < opacityLowerLimit, 1, (opacityUpperLimit-height)/(opacityUpperLimit-opacityLowerLimit)]];
 
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
@@ -142,7 +145,7 @@ heightThreshold = If[show534, 7, 5];
 
 data = getAllComponentsThroughCache[heightThreshold];
 
-exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
+exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 
 	componentCells = data["componentCells"];
@@ -233,10 +236,14 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			cells = componentCells[[compIndex]];
-			cells = Select[cells, Length[Intersection[{getCellCenter[#]}, cells534Centers, SameTest -> ApproxSamePoint ]]>0 &];
 
 			For[cid = 1, cid <= Length[cells], cid++,
 				sampleCell = cells[[cid]];
+				sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cells534Centers, SameTest -> ApproxSamePoint ]] > 0;
+				cellHeight = getCellHeight[sampleCell];
+				opacity = getOpacityByHeight[cellHeight];
+				Print[{cellHeight, opacity}];
+
 				triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
 				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 					triangle = triangles[[triangleIndex]];
@@ -246,10 +253,10 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-					color = Lighter[colors[[compIndex]], 0.05];
+					color = Lighter[colors[[compIndex]], If[sharing534Centers, 0.0, 0.2]];
 					surface = ParametricPlot3D[
 						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-						PlotStyle -> {color, Opacity[1]}, Mesh -> None
+						PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
 					];
 					AppendTo[surfaces, surface];
 				];
@@ -265,7 +272,13 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 		cells = cells534;
 		For[cid = 1, cid <= Length[cells], cid++,
 			sampleCell = cells[[cid]];
+			cellHeight = getCellHeight[sampleCell];
+			opacity = getOpacityByHeight[cellHeight];
+			Print[{cellHeight, opacity}];
+
 			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+			cellHeight = getCellHeight[sampleCell];
+
 			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 				triangle = triangles[[triangleIndex]];
 				norm = HNorm[triangle[[1]]];
@@ -277,7 +290,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 				color = Lighter[color534, 0.05];
 				surface = ParametricPlot3D[
 					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-					PlotStyle -> {color, Opacity[1]}, Mesh -> None
+					PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
 				];
 				AppendTo[surfaces, surface];
 			];
@@ -313,42 +326,43 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 		];
 	];
 
-	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+	(* For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			edges = componentEdges[[compIndex]];
 			color = colors[[compIndex]];
 			AppendTo[graphElements,
-				{
-					Opacity[1], FaceForm[color], 
-					Table[
-			            Cylinder[
-			                Map[projectTo3d, edges[[edgeIndex]]], 
-			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
-			            ], 
-			            {edgeIndex, 1, Length[edges]}
-			        ]
-				}
+				Table[{
+					Opacity[
+						getOpacityByHeight[(edges[[edgeIndex]][[1]][[1]]+edges[[edgeIndex]][[2]][[1]])/2]
+					], 
+					FaceForm[color], 
+            Cylinder[
+                Map[projectTo3d, edges[[edgeIndex]]], 
+                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+            ], 
+            {edgeIndex, 1, Length[edges]}
+				}];
 			];
 
 			cells = componentCells[[compIndex]];
 			sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
 		];
+	]; *)
+
+	If[show534==False,
+		AppendTo[graphElements,
+			{
+				Opacity[1], FaceForm[color534], 
+				Table[
+		            Cylinder[
+		                Map[projectTo3d, edges534[[edgeIndex]]], 
+		                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/HNorm[edges534[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/HNorm[edges534[[edgeIndex]][[2]]])^thicknessDecayExponent)
+		            ], 
+		            {edgeIndex, 1, Length[edges534]}
+		        ]
+			}
+		];
 	];
-
-	AppendTo[graphElements,
-		{
-			Opacity[1], FaceForm[color534], 
-			Table[
-	            Cylinder[
-	                Map[projectTo3d, edges534[[edgeIndex]]], 
-	                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/HNorm[edges534[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/HNorm[edges534[[edgeIndex]][[2]]])^thicknessDecayExponent)
-	            ], 
-	            {edgeIndex, 1, Length[edges534]}
-	        ]
-		}
-	];
-
-
 
 	Print["Generated graph elements"];
 
@@ -373,15 +387,22 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_] := Module[
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
-	If[exportToPov,
-	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-	  Print["Exporting to POV ray"];
-	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-	  Run[cropCommand];
-	  ,
-	  Export[outputFileName, graph];
+	If[copyLast,
+		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
+		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
+		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
+		CopyFile[lastOutputFileName, outputFileName],	
+
+		If[exportToPov,
+		  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+		  Print["Exporting to POV ray"];
+		  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+		  Run[cropCommand];
+		  ,
+		  Export[outputFileName, graph];
+		];
+		Print["Saved an image to " <> outputFileName];
 	];
-	Print["Saved an image to " <> outputFileName];
 ];
 
 
@@ -415,7 +436,11 @@ exportAnimation[] := Module[
 
 	For[expId = 1, expId <= Length[explosionFactors], expId++,
 		explosionFactor = explosionFactors[[expId]];
-		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName];
+		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
+	];
+
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
