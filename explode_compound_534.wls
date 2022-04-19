@@ -96,8 +96,8 @@ sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
-opacityUpperLimit = 12.5;
-opacityLowerLimit = 11.5;
+opacityUpperLimit = 20;
+opacityLowerLimit = 10;
 getOpacityByHeight[height_] := If[height > opacityUpperLimit, 0, If[height < opacityLowerLimit, 1, (opacityUpperLimit-height)/(opacityUpperLimit-opacityLowerLimit)]];
 
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
