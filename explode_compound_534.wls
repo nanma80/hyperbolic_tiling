@@ -5,6 +5,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 100;
 
+(* maxExplosionFactor = 8.0; *)
+(* frameCount = 6; *)
+
 (* models = {"hyperboloid", "klein", "poincare"}; *)
 (* models = {"klein", "poincare"}; *)
 (* models = {"hyperboloid"}; *)
@@ -14,8 +17,8 @@ frameCount = 100;
 (* 
 explosion steps: 
 0: explode all cells
-1: move away the cells of 435 that don't share centers with any 534 cells
-2: hide the moving cells in step 1, and explode the other cells in 534 and 435
+1: hide the moving cells in step 2, and explode the other cells in 534 and 435
+2: move away the cells of 435 that don't share centers with any 534 cells
  *)
 
 (* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
@@ -96,9 +99,19 @@ sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
-opacityUpperLimit = 20;
-opacityLowerLimit = 10;
-getOpacityByHeight[height_] := If[height > opacityUpperLimit, 0, If[height < opacityLowerLimit, 1, (opacityUpperLimit-height)/(opacityUpperLimit-opacityLowerLimit)]];
+getOpacityByExplosion[factor_] := If[factor < maxExplosionFactor/2, 1, 2 - 2/maxExplosionFactor * factor];
+getSplitEdges[edges_] := Module[
+	{splitEdges, eid, edge, norm, splitParts},
+	splitEdges = {};
+	For[eid = 1, eid <= Length[edges], eid++,
+		edge = edges[[eid]];
+		norm = HNorm[edge[[1]]];
+		splitParts = splitEdge[edge, splitEdgeParts];
+		splitParts = Map[HNormalize[#, norm]&, splitParts, {2}];
+		splitEdges = Join[splitEdges, splitParts];
+	];
+	splitEdges
+];
 
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
@@ -114,16 +127,18 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_] :=
 	If[explosionStep == 0,
 			inactiveCells = {};
 			activeCells = cells,
-		If[explosionStep == 1,
+		If[explosionStep == 2,
 			inactiveCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
 			activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]==0 &],
-			(* explosionStep == 2 *)
-			inactiveCells = {};
-			activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
+			(* explosionStep == 1 *)
+			inactiveCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon &];
+			activeCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] > epsilon && Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]
+			(* inactiveCells = {}; *)
+			(* activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]; *)
 		];
 	];
 	activeCells = Map[explodedCell[#, explosionFactor]&, activeCells];
-	Join[activeCells, inactiveCells]
+	{activeCells, inactiveCells}
 ];
 
 getAllComponentsThroughCache[heightThreshold_] := Module[
@@ -150,7 +165,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	componentCells = data["componentCells"];
 	cells534 = data["convexHullCells"];
-	vertices534 = data["convexHullVertices"];
+	(* vertices534 = data["convexHullVertices"]; *)
 	range = 0.6;
 	componentCellCenterHeights = Apply[Join, Map[getCellHeight, componentCells, {2}]];
 	cells534CenterHeights = Map[getCellHeight, cells534];
@@ -168,44 +183,52 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	explosion steps: 
 	0: explode all cells
-	1: move away the cells of 435 that don't share centers with any 534 cells
-	2: hide the moving cells in step 1, and explode the other cells in 534 and 435
+	1: hide the moving cells in step 2, and explode the other cells in 534 and 435
+	2: move away the cells of 435 that don't share centers with any 534 cells
 	*)
 
 	componentCellCenters = Map[getCellCenter, componentCells, {2}];
 	cells534Centers = Map[getCellCenter, cells534];
 
-	cells534 = explodeCellsByStep[cells534, cells534Centers, explosionFactor, explosionStep];
-	componentCells = Map[explodeCellsByStep[#, cells534Centers, explosionFactor, explosionStep]&, componentCells];
+	cells534ActiveAndInactive = explodeCellsByStep[cells534, cells534Centers, explosionFactor, explosionStep];
+	cells534Active = cells534ActiveAndInactive[[1]];
+	cells534Inactive = cells534ActiveAndInactive[[2]];
+	componentCellsActiveAndInactive = Map[explodeCellsByStep[#, cells534Centers, explosionFactor, explosionStep]&, componentCells];
+	componentCellsActive = Map[#[[1]]&, componentCellsActiveAndInactive];
+	componentCellsInactive = Map[#[[2]]&, componentCellsActiveAndInactive];
 
-	vertexNorm = HNorm[cells534[[1]][[1]][[1]]];
-	Print["vertexNorm"];
-	Print[vertexNorm];
+	(* vertexNorm = HNorm[cells534[[1]][[1]][[1]]]; *)
+	(* Print["vertexNorm"]; *)
+	(* Print[vertexNorm]; *)
 
-	componentFaces = Map[Join[Flatten[#, 1]] &, componentCells];
-	componentEdges = Map[Join[Flatten[Map[getEdgesFromFace, #], 1]]&, componentFaces];
-	componentVertices = Map[Join[Flatten[#, 1]]&, componentFaces];
+	(* componentFaces = Map[Join[Flatten[#, 1]] &, componentCells]; *)
+	(* componentEdges = Map[Join[Flatten[Map[getEdgesFromFace, #], 1]]&, componentFaces]; *)
+	(* componentVertices = Map[Join[Flatten[#, 1]]&, componentFaces]; *)
+
+	faces534Active = Join[Flatten[cells534Active, 1]];	
+	edges534Active = Join[ Flatten[Map[getEdgesFromFace, faces534Active], 1]];
+	faces534Inactive = Join[Flatten[cells534Inactive, 1]];	
+	edges534Inactive = Join[ Flatten[Map[getEdgesFromFace, faces534Inactive], 1]];
+	(* vertices534 = Join[ Flatten[faces534, 1]]; *)
 
 
-	faces534 = Join[Flatten[cells534, 1]];	
-	edges534 = Join[ Flatten[Map[getEdgesFromFace, faces534], 1]];
-	vertices534 = Join[ Flatten[faces534, 1]];
+	Print["The counts of active and inactive cells for all components"];
+	Print[Map[Length, componentCellsActive]];
+	Print[Map[Length, componentCellsInactive]];
+	(* Print[Map[Length, componentFaces]]; *)
+	(* Print[Map[Length, componentEdges]]; *)
+	(* Print[Map[Length, componentVertices]]; *)
 
-
-	Print["The counts of cells, faces, edges, and vertices for all components"];
-	Print[Map[Length, componentCells]];
-	Print[Map[Length, componentFaces]];
-	Print[Map[Length, componentEdges]];
-	Print[Map[Length, componentVertices]];
-
-	Print["The counts of 534 cells, faces, edges, and vertices"];
-	Print[Map[Length, {cells534, faces534, edges534, vertices534}]];
+	Print["The counts of active and inactive 534 cells, faces, edges"];
+	Print[Map[Length, {cells534Active, cells534Inactive}]];
+	Print[Map[Length, {faces534Active, faces534Inactive}]];
+	Print[Map[Length, {edges534Active, edges534Inactive}]];
 
 	projectTo3d[v_] := getPoincareExploded[v, HNorm[v]];
 
-	splitCompEdges = {};
+	(* splitCompEdges = {}; *)
 
-	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+(* 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 		edges = componentEdges[[compIndex]];
 		splitEdges = {};
 		For[eid = 1, eid <= Length[edges], eid++,
@@ -216,35 +239,73 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			splitEdges = Join[splitEdges, splitParts];
 		];
 		AppendTo[splitCompEdges, splitEdges]
-	];
+	]; *)
 
 	(* split 534 edges *)
-	splitEdges = {};
-	For[eid = 1, eid <= Length[edges534], eid++,
-		edge = edges534[[eid]];
-		norm = HNorm[edge[[1]]];
-		splitParts = splitEdge[edge, splitEdgeParts];
-		splitParts = Map[HNormalize[#, norm]&, splitParts, {2}];
-		splitEdges = Join[splitEdges, splitParts];
-	];
 
-	componentEdges = splitCompEdges;
-	edges534 = splitEdges;
+	edges534Active = getSplitEdges[edges534Active];
+	edges534Inactive = getSplitEdges[edges534Inactive];
 
 	surfaces = {};
-	cells534Centers = Map[getCellCenter, cells534];
-	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+	cells534Centers = Map[getCellCenter, Join[cells534Active, cells534Inactive]];
+	For[compIndex=1, compIndex<=Length[componentCellsActiveAndInactive],compIndex++,
 		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
-			cells = componentCells[[compIndex]];
+			cellsTuple = componentCellsActiveAndInactive[[compIndex]];
+			For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
+				opacity = If[activeFlag == 1, 
+					getOpacityByExplosion[explosionFactor],
+					1
+				];
+				cells = cellsTuple[[activeFlag]];
+				Print["{opacity, Length[cells]}"];
+				Print[{opacity, Length[cells]}];
+
+				For[cid = 1, cid <= Length[cells], cid++,
+					sampleCell = cells[[cid]];
+					sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cells534Centers, SameTest -> ApproxSamePoint ]] > 0;
+					cellHeight = getCellHeight[sampleCell];
+
+					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+						triangle = triangles[[triangleIndex]];
+						norm = HNorm[triangle[[1]]];
+						planarPoints[l1_, l2_] := 
+							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
+						poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
+						color = Lighter[colors[[compIndex]], If[sharing534Centers, 0, 0.1]];
+						surface = ParametricPlot3D[
+							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+							PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
+						];
+						AppendTo[surfaces, surface];
+					];
+
+					If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+						range = Norm[poincarePoints[0, 0]] * rangeFactor;
+					];
+				];			
+			];			
+		];
+	];
+
+	If[show534,
+		For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
+			cells = cells534ActiveAndInactive[[activeFlag]];
+			opacity = If[activeFlag == 1, 
+				getOpacityByExplosion[explosionFactor],
+				1
+			];
+			Print["{opacity, Length[cells]}"];
+			Print[{opacity, Length[cells]}];
 
 			For[cid = 1, cid <= Length[cells], cid++,
 				sampleCell = cells[[cid]];
-				sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cells534Centers, SameTest -> ApproxSamePoint ]] > 0;
 				cellHeight = getCellHeight[sampleCell];
-				opacity = getOpacityByHeight[cellHeight];
-				Print[{cellHeight, opacity}];
-				If[opacity == 0, Continue[]];
 				triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+				cellHeight = getCellHeight[sampleCell];
+
 				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 					triangle = triangles[[triangleIndex]];
 					norm = HNorm[triangle[[1]]];
@@ -253,7 +314,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-					color = Lighter[colors[[compIndex]], If[sharing534Centers, 0.0, 0.2]];
+					color = color534;
 					surface = ParametricPlot3D[
 						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
 						PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
@@ -268,48 +329,15 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		];
 	];
 
-	If[show534,
-		cells = cells534;
-		For[cid = 1, cid <= Length[cells], cid++,
-			sampleCell = cells[[cid]];
-			cellHeight = getCellHeight[sampleCell];
-			opacity = getOpacityByHeight[cellHeight];
-			Print[{cellHeight, opacity}];
-			If[opacity == 0, Continue[]];
-			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-			cellHeight = getCellHeight[sampleCell];
-
-			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-				triangle = triangles[[triangleIndex]];
-				norm = HNorm[triangle[[1]]];
-				planarPoints[l1_, l2_] := 
-					l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
-				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
-				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-				color = Lighter[color534, 0.05];
-				surface = ParametricPlot3D[
-					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-					PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
-				];
-				AppendTo[surfaces, surface];
-			];
-
-			If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
-				range = Norm[poincarePoints[0, 0]] * rangeFactor;
-			];
-		];
-	];
-
 	Print["Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
 	Print["Range of plot: " <> ToString[range]];
 	thickness = range * 0.008;
-	thicknessDecayExponent = 1.25;
+	thicknessDecayExponent = 1.0;
 
 	graphElements = {};
 
-	If[showVertices,
+(* 	If[showVertices,
 		vertices = Apply[Join, componentVertices];
 
 		AppendTo[graphElements,
@@ -324,7 +352,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		        ]
 			}
 		];
-	];
+	]; *)
 
 	(* For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
 		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
@@ -350,17 +378,27 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	]; *)
 
 	If[show534==False,
-		AppendTo[graphElements,
-			{
-				Opacity[1], FaceForm[color534], 
-				Table[
-		            Cylinder[
-		                Map[projectTo3d, edges534[[edgeIndex]]], 
-		                thickness * 5/(1 + (edges534[[edgeIndex]][[1]][[1]]/HNorm[edges534[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges534[[edgeIndex]][[2]][[1]]/HNorm[edges534[[edgeIndex]][[2]]])^thicknessDecayExponent)
-		            ], 
-		            {edgeIndex, 1, Length[edges534]}
-		        ]
-			}
+		edgesTuple = {edges534Active, edges534Inactive};
+		For[activeFlag = 1, activeFlag <= 2, activeFlag++,
+			edges = edgesTuple[[activeFlag]];
+			opacity = If[activeFlag == 1, 
+				getOpacityByExplosion[explosionFactor],
+				1
+			];
+			Print["{opacity, Length[edges]}"];
+			Print[{opacity, Length[edges]}];
+			AppendTo[graphElements,
+				{
+					Opacity[opacity], FaceForm[color534], 
+					Table[
+			            Cylinder[
+			                Map[projectTo3d, edges[[edgeIndex]]], 
+			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+			            ], 
+			            {edgeIndex, 1, Length[edges]}
+			        ]
+				}
+			];
 		];
 	];
 
@@ -391,6 +429,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
 		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
 		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
+		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
 		CopyFile[lastOutputFileName, outputFileName],	
 
 		If[exportToPov,
