@@ -162,7 +162,7 @@ data = getAllComponentsThroughCache[heightThreshold];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
-
+	(* Return[]; *)
 	componentCells = data["componentCells"];
 	cells534 = data["convexHullCells"];
 	(* vertices534 = data["convexHullVertices"]; *)
@@ -478,7 +478,7 @@ exportAnimation[] := Module[
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / If[explosionStep == 1, 6, 3]], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
@@ -504,3 +504,6 @@ exportAnimation[] := Module[
 exportAnimation[];
 
 (* exportFrame[0.0, 1, "test"]; *)
+(* 
+for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
+ *)
