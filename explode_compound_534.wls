@@ -478,7 +478,7 @@ exportAnimation[] := Module[
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / If[explosionStep == 1, 6, 3]], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / If[explosionStep == 1 && show534 == False, 6, 3]], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
