@@ -427,6 +427,7 @@ exportAnimation[] := Module[
 
 	For[expId = 1, expId <= Length[opacities], expId++,
 		opacity = opacities[[expId]];
+		Print["Frame #" <> IntegerString[expId] <> "/" <> IntegerString[Length[opacities]]];
 		exportFrame[opacity, frameIndex++, outputFrameFolderName, False];
 	];
 
