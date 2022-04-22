@@ -1,9 +1,7 @@
 #!/usr/bin/env wolframscript
 
-(* Objective: visualize 2{5, 3, 4}[5{4, 3, 5}] *)
-
 maxExplosionFactor = 10.0;
-frameCount = 80;
+frameCount = 100;
 
 (* maxExplosionFactor = 8.0; *)
 (* frameCount = 6; *)
@@ -14,38 +12,35 @@ frameCount = 80;
 (* models = {"klein"}; *)
 (* models = {"poincare"}; *)
 
-(* 
-explosion steps: 
-0: explode all cells
-1: hide the moving cells in step 2, and explode the other cells in 534 and 435
-2: move away the cells of 435 that don't share centers with any 534 cells
- *)
-
 (* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
 (* heightThreshold = 2; *)
 (* heightThreshold = 4; *)
 (* heightThreshold = 5; *)
 (* heightThreshold = 7; *)
 
+cellThreshold = 100;
+(* cellThreshold = 300; *)
+(* cellThreshold = 1000; *)
+
 showVertices = False;
 
 argv = Rest @ $ScriptCommandLine;
-If[Length[argv] < 1,
-	Print["Usage: wolframscript.exe transition_compound_534.wls <displayCompIndex>"];
+If[Length[argv] < 3,
+	Print["Usage: wolframscript.exe explode_honeycomb.wls <p> <q> <r> <cellThreshold>"];
 ];
 
-displayCompIndex = If[Length[argv] >= 1, 
-	ToExpression[argv[[1]]],
-	0
+If[Length[argv] >= 3, 
+	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]]; r = ToExpression[argv[[3]]],
+	p = 5; q = 3; r = 4;
 ];
 
-explosionStep = 1;
-show534 = True;
+If[Length[argv] >= 4, 
+	cellThreshold = ToExpression[argv[[4]]]
+];
 
-(* explosionFactor = explosionPercent / 100.0; *)
+Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
+shape = "explode_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
 
-(* Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"]; *)
-(* shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm]; *)
 dataFolder = "data";
 imageFolder = "images";
 epsilon = 0.00000001;
@@ -56,7 +51,7 @@ colors = {Red, Green, Blue, Purple, Yellow};
 color534 = Gray;
 colorVertices = Cyan;
 
-outputFolder = FileNameJoin[{imageFolder, "compound_435"}];
+outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 15;
@@ -148,15 +143,25 @@ getAllComponentsThroughCache[heightThreshold_] := Module[
   data
 ];
 
-heightThreshold = If[show534, 7, 5];
-(* heightThreshold = 5; *)
+dataFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
 
-data = getAllComponentsThroughCache[heightThreshold];
+If[FileExistsQ[dataFileName], 
+    Print["Reading from from " <> dataFileName];
+    data = Get[dataFileName],
+    (* file do not exist *)
+    Print["cell threshold can only be 100, 300, or 1000"];
+    Exit[];
+];
 
-exportFrame[faceOpacity_, frameIndex_, outputFolderName_, copyLast_] := Module[
+cells = data["cells"];
+
+Print[cells//Length];
+
+Exit[];
+
+exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	(* Return[]; *)
-	explosionFactor = 0;
 	componentCells = data["componentCells"];
 	cells534 = data["convexHullCells"];
 	(* vertices534 = data["convexHullVertices"]; *)
@@ -243,12 +248,15 @@ exportFrame[faceOpacity_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	surfaces = {};
 	cells534Centers = Map[getCellCenter, Join[cells534Active, cells534Inactive]];
 	For[compIndex=1, compIndex<=Length[componentCellsActiveAndInactive],compIndex++,
-		If[(displayCompIndex == 0 || displayCompIndex == compIndex),
+		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			cellsTuple = componentCellsActiveAndInactive[[compIndex]];
-			For[activeFlag = 2, activeFlag <= 2, activeFlag ++,
-				opacity = 1;
+			For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
+				opacity = If[activeFlag == 1, 
+					getOpacityByExplosion[explosionFactor],
+					1
+				];
 				cells = cellsTuple[[activeFlag]];
-				Print["Component {opacity, Length[cells]}"];
+				Print["{opacity, Length[cells]}"];
 				Print[{opacity, Length[cells]}];
 
 				For[cid = 1, cid <= Length[cells], cid++,
@@ -282,10 +290,13 @@ exportFrame[faceOpacity_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	];
 
 	If[show534,
-		For[activeFlag = 2, activeFlag <= 2, activeFlag ++,
+		For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
 			cells = cells534ActiveAndInactive[[activeFlag]];
-			opacity = faceOpacity;
-			Print["534 {opacity, Length[cells]}"];
+			opacity = If[activeFlag == 1, 
+				getOpacityByExplosion[explosionFactor],
+				1
+			];
+			Print["{opacity, Length[cells]}"];
 			Print[{opacity, Length[cells]}];
 
 			For[cid = 1, cid <= Length[cells], cid++,
@@ -325,23 +336,68 @@ exportFrame[faceOpacity_, frameIndex_, outputFolderName_, copyLast_] := Module[
 
 	graphElements = {};
 
-	edgesTuple = {edges534Active, edges534Inactive};
-	For[activeFlag = 2, activeFlag <= 2, activeFlag++,
-		edges = edgesTuple[[activeFlag]];
-		opacity = 1 - faceOpacity;
-		Print["534 edge {opacity, Length[edges]}"];
-		Print[{opacity, Length[edges]}];
+(* 	If[showVertices,
+		vertices = Apply[Join, componentVertices];
+
 		AppendTo[graphElements,
 			{
-				Opacity[opacity], FaceForm[color534], 
+				Opacity[1], FaceForm[colorVertices], 
 				Table[
-		            Cylinder[
-		                Map[projectTo3d, edges[[edgeIndex]]], 
-		                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+		            Sphere[
+		                projectTo3d[vertices[[vIndex]]],
+		                thickness * 10/(1 + (vertices[[vIndex]][[1]]/HNorm[vertices[[vIndex]]] )^thicknessDecayExponent)
 		            ], 
-		            {edgeIndex, 1, Length[edges]}
+		            {vIndex, 1, Length[vertices]}
 		        ]
 			}
+		];
+	]; *)
+
+	(* For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
+		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
+			edges = componentEdges[[compIndex]];
+			color = colors[[compIndex]];
+			AppendTo[graphElements,
+				Table[{
+					Opacity[
+						getOpacityByHeight[(edges[[edgeIndex]][[1]][[1]]+edges[[edgeIndex]][[2]][[1]])/2]
+					], 
+					FaceForm[color], 
+            Cylinder[
+                Map[projectTo3d, edges[[edgeIndex]]], 
+                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+            ], 
+            {edgeIndex, 1, Length[edges]}
+				}];
+			];
+
+			cells = componentCells[[compIndex]];
+			sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
+		];
+	]; *)
+
+	If[show534==False,
+		edgesTuple = {edges534Active, edges534Inactive};
+		For[activeFlag = 1, activeFlag <= 2, activeFlag++,
+			edges = edgesTuple[[activeFlag]];
+			opacity = If[activeFlag == 1, 
+				getOpacityByExplosion[explosionFactor],
+				1
+			];
+			Print["{opacity, Length[edges]}"];
+			Print[{opacity, Length[edges]}];
+			AppendTo[graphElements,
+				{
+					Opacity[opacity], FaceForm[color534], 
+					Table[
+			            Cylinder[
+			                Map[projectTo3d, edges[[edgeIndex]]], 
+			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+			            ], 
+			            {edgeIndex, 1, Length[edges]}
+			        ]
+				}
+			];
 		];
 	];
 
@@ -393,12 +449,11 @@ exportAnimation[] := Module[
 		gifFileName,
 		gifFolder,
 		frameIndex,
-		opacities,
-		opacity,
+		explosionFactor,
 		gifCommand
 	},
 
-	shapeWithParams = If[displayCompIndex == 0, "all_components", "component_" <> IntegerString[displayCompIndex]] <> "_transition_" <> IntegerString[heightThreshold];
+	shapeWithParams = shape <> IntegerString[cellThreshold];
 	outputFrameFolderName = shapeWithParams <> "_frames";
 
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFrameFolderName}];
@@ -409,26 +464,21 @@ exportAnimation[] := Module[
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
 	frameIndex = 1;
-
-	opacities1 = Table[
-		1,
-		{k, Ceiling[frameCount/3]}
+	explosionFactors = Table[
+		(1 - Sin[Pi/2 * (k/(frameCount - 1))]) * maxExplosionFactor,
+		{k, 0, frameCount-1}
 	];
 
-	opacities2 = Table[
-		1 - k/(frameCount-1),
-		{k, 0, frameCount - 1}
+	Print["explosionFactors"];
+	Print[explosionFactors];
+
+	For[expId = 1, expId <= Length[explosionFactors], expId++,
+		explosionFactor = explosionFactors[[expId]];
+		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	opacities = Join[opacities1, opacities2];
-
-	Print["opacities"];
-	Print[opacities];
-
-	For[expId = 1, expId <= Length[opacities], expId++,
-		opacity = opacities[[expId]];
-		Print["Frame #" <> IntegerString[expId] <> "/" <> IntegerString[Length[opacities]]];
-		exportFrame[opacity, frameIndex++, outputFrameFolderName, False];
+	For[fid = 1, fid <= Ceiling[frameCount / If[explosionStep == 1 && show534 == False, 6, 3]], fid++,
+		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];

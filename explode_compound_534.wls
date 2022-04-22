@@ -63,7 +63,7 @@ colors = {Red, Green, Blue, Purple, Yellow};
 color534 = Gray;
 colorVertices = Cyan;
 
-outputFolder = FileNameJoin[{imageFolder, "explode_534"}];
+outputFolder = FileNameJoin[{imageFolder, "compound_435"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 15;
