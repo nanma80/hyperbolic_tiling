@@ -12,12 +12,15 @@ If[Length[argv] >= 3,
 	p = 5; q = 3; r = 4;
 ];
 
-(* cellThreshold = 100; *)
+cellThreshold = 100;
 (* cellThreshold = 300; *)
-cellThreshold = 1000;
+(* cellThreshold = 1000; *)
+
+cellFirst = True;
+(* cellFirst = False; *)
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
-shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm];
+shape = "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> If[cellFirst, "_cell_first", ""];
 dataFolder = "data";
 imageFolder = "images";
 epsilon = 0.00000001;
@@ -46,15 +49,19 @@ Rotation[t_] :=
   {0, -Sin[t], Cos[t]}
 };
 
+Boost[boost_] := {{Cosh[boost], Sinh[boost], 0, 0}, {Sinh[boost], Cosh[boost], 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 HDoubleReflect[point_, mirror1_, mirror2_] := HReflect[HReflect[point, mirror1], mirror2];
 (* ApproxSamePoint[point1_, point2_] := Norm[N[point1 - point2]] < 0.00001; *)
 ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, epsilon];
+ApproxSamePointLoose[point1_, point2_] := Round[point1, 100 epsilon] == Round[point2, 100 epsilon];
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
-sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
+sameCenter[set1_, set2_] := ApproxSamePointLoose[Total[N[set1]], Total[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
+getCellHeight[cell_] := getCellCenter[cell][[1]];
 
 getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
@@ -100,6 +107,34 @@ getVertexFigureCoordinates[p_, q_, r_] := Module[
 	];
 
 	Map[#/Norm[#]&, vertexFigureCoordinates]
+];
+
+filterCells[cells_, cellThreshold_] := Module[
+	{cellCenterHeights, heightTally, tallyCounts, includeCount, heightThreshold, levelIndex},
+
+	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+	tallyCounts = Map[#[[2]]&, heightTally];
+
+	includeCount = 0;
+	heightThreshold = -1;
+	For[levelIndex = 1, levelIndex <= Length[heightTally], levelIndex++,
+		If[includeCount < cellThreshold,
+			includeCount += heightTally[[levelIndex]][[2]];
+			If[includeCount >= cellThreshold,
+				heightThreshold = heightTally[[levelIndex]][[1]] + epsilon
+			];
+		];
+	];
+
+	If[heightThreshold == -1,
+		heightThreshold = heightTally[[Length[heightTally]]][[1]] + epsilon
+	];
+
+	filteredCells = Select[cells, getCellCenter[#][[1]] <= heightThreshold&];
+	Print["Filter from " <> IntegerString[Length[cells]] <> " cells down to " <> IntegerString[Length[filteredCells]] <> " cells."];
+
+	filteredCells
 ];
 
 getCells[p_, q_, r_, cellThreshold_] := Module[
@@ -177,31 +212,67 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	Print["Generated " <> IntegerString[Length[cells]] <> " cells in total."];
 
-	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
-	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
-	tallyCounts = Map[#[[2]]&, heightTally];
+	If[cellFirst,
+		cells = filterCells[cells, cellThreshold];
+		cellCenterHeights = Map[getCellHeight, cells];
+		minHeight = Min[cellCenterHeights];
+		Print["cellFirst"];
+		Print[minHeight];
+		sampleCell = Select[cells, getCellHeight[#] < minHeight + epsilon & ][[1]];
 
-	includeCount = 0;
-	heightThreshold = -1;
-	For[levelIndex = 1, levelIndex <= Length[heightTally], levelIndex++,
-		If[includeCount < cellThreshold,
-			includeCount += heightTally[[levelIndex]][[2]];
-			If[includeCount >= cellThreshold,
-				heightThreshold = heightTally[[levelIndex]][[1]] + epsilon
+		sampleCellCenter = HNormalize[getCellCenter[sampleCell], 1];
+		Print[sampleCellCenter];
+
+		cellCenterToX = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{sampleCellCenter[[{2,3,4}]], {1, 0, 0}}]}}];
+		transformedCenter = sampleCellCenter.Transpose[cellCenterToX];
+		setup = Transpose[cellCenterToX].Boost[-ArcCosh[transformedCenter[[1]]]];
+
+		zVector = If[p == 3 && q == 5 && r == 3,
+			(* for 353, orient a vertex along the z axis *)
+			HNormalize[sampleCell[[1]][[1]].setup, 1],
+			(* for 535, 435, 534, orient a face center along the z axis *)
+			HNormalize[Mean[sampleCell[[1]]].setup, 1]
+		];
+
+		zVectorToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{zVector[[Range[2,4]]], {0, 0, 1}}]}}];
+		setup = setup.Transpose[zVectorToZaxis];
+
+		cells = Map[#.setup &, cells];
+		cells = filterCells[cells, cellThreshold];
+		sampleCell = sampleCell.setup;
+
+		sampleFaces = Union[Flatten[{sampleCell}, 1], SameTest -> sameCenter];	
+		sampleEdges = Union[ Flatten[Map[getEdgesFromFace, sampleFaces], 1], SameTest -> sameCenter];
+		sampleVertices = Union[ Flatten[sampleFaces, 1], SameTest -> ApproxSamePoint];
+
+		sampleVertex = sampleVertices[[1]];
+		sampleEdgesFromVertex = Select[sampleEdges, Length[Intersection[#, {sampleVertex}, SameTest -> ApproxSamePoint]] > 0 &];
+		otherVertices = Map[Complement[#, {sampleVertex}, SameTest -> ApproxSamePoint][[1]]&, sampleEdgesFromVertex];
+		Print["Number of other vertices: " <> IntegerString[Length[otherVertices]]];
+
+		mirrors = Map[(sampleVertex - #)&, otherVertices[[Range[3] ]] ];
+
+		Print[Map[Length, {sampleEdgesFromVertex, otherVertices, mirrors}]];
+
+		countStart = -1;
+		For[i = 0, i < 10 && countStart != Length[cells], i++,
+			countStart = Length[cells];
+
+			Print["filter cells"];
+			(* If[i <= 2, cells = filterCells[cells, cellThreshold]]; *)
+			cells = filterCells[cells, cellThreshold];
+			
+			For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
+				newCells = Map[HReflect[#, mirrors[[mirrorIndex]]] &, cells, {3}];
+				cells = Union[cells, newCells, SameTest -> sameCellCenter];
+				Print[{i, mirrorIndex, Length[cells], countStart}];
 			];
 		];
+
+		Print["After shifting to cell first projection, generated " <> IntegerString[Length[cells]] <> " cells in total."];
 	];
-	If[heightThreshold == -1,
-		heightThreshold = heightTally[[Length[heightTally]]][[1]] + epsilon
-	];
 
-
-	Print[heightTally];
-	Print[tallyCounts];
-	Print[heightThreshold];
-	cells = Select[cells, getCellCenter[#][[1]] <= heightThreshold&];
-	Print["Filter down to " <> IntegerString[Length[cells]] <> " cells."];
-
+	cells = filterCells[cells, cellThreshold];
 	cells
 ];
 
@@ -236,8 +307,8 @@ GetDataThroughCache[p, q, r] := Module[
 			"vertices" -> vertices
 		|>;
 
-      Save[dataFileName, data];
-      Print["Saved data " <> dataFileName];
+    Save[dataFileName, data];
+    Print["Saved data " <> dataFileName];
   ];
   data
 ];
@@ -304,7 +375,10 @@ For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 		        ]
 			}
 		},
-		ViewPoint -> {3, -4, 1}*30,
+		(* for real output *)
+		(* ViewPoint -> {3, -4, 1}*30, *)
+		(* for testing *)
+		ViewPoint -> {0, 0, 1}*1000, ViewVertical -> {1, 0, 0},
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
