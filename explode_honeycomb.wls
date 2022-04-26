@@ -143,12 +143,13 @@ getAllComponentsThroughCache[heightThreshold_] := Module[
   data
 ];
 
-dataFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+dataFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_cell_first_" <> IntegerString[cellThreshold] <> ".wl"}];
 
 If[FileExistsQ[dataFileName], 
     Print["Reading from from " <> dataFileName];
     data = Get[dataFileName],
     (* file do not exist *)
+    Print["data file "<> dataFileName <> " does not exist"];
     Print["cell threshold can only be 100, 300, or 1000"];
     Exit[];
 ];
@@ -157,46 +158,33 @@ cells = data["cells"];
 
 Print[cells//Length];
 
+subsetFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_cell_first_" <> IntegerString[cellThreshold] <> "_subsets_cell_first.wl"}];
+
+If[FileExistsQ[subsetFileName], 
+    Print["Reading from from " <> subsetFileName];
+    allSubsets = Get[subsetFileName],
+    (* file do not exist *)
+    Print["data file "<> subsetFileName <> " does not exist"];
+    Exit[];
+];
+
+Print[allSubsets//Length];
+
 Exit[];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	(* Return[]; *)
-	componentCells = data["componentCells"];
-	cells534 = data["convexHullCells"];
-	(* vertices534 = data["convexHullVertices"]; *)
+	cells = data["cells"];
 	range = 0.6;
-	componentCellCenterHeights = Apply[Join, Map[getCellHeight, componentCells, {2}]];
-	cells534CenterHeights = Map[getCellHeight, cells534];
-	componentHeightsTally = Sort[Tally[componentCellCenterHeights, ApproxSamePoint]];
-	cells534HeightsTally = Sort[Tally[cells534CenterHeights, ApproxSamePoint]];
-	Print["Heights of components and 534 before explosion"];
-	Print[componentHeightsTally];
-	Print[cells534HeightsTally];
+	cellsCenterHeights = Map[getCellHeight, cells];
+	cellsCenters = Map[getCellCenter, cells];
 
-	(* 
-	explode the cells: 
-	when height threshold = 5:
-	{{1.851229586821858, 5}, {2.995352392457251, 30}, {4.84658197927913, 120}}
-	{{1.8512295868219169, 1}, {4.846581979279199, 12}}
+	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0];
+	cellsActive = cellsActiveAndInactive[[1]];
+	cellsInactive = cellsActiveAndInactive[[2]];
 
-	explosion steps: 
-	0: explode all cells
-	1: hide the moving cells in step 2, and explode the other cells in 534 and 435
-	2: move away the cells of 435 that don't share centers with any 534 cells
-	*)
-
-	componentCellCenters = Map[getCellCenter, componentCells, {2}];
-	cells534Centers = Map[getCellCenter, cells534];
-
-	cells534ActiveAndInactive = explodeCellsByStep[cells534, cells534Centers, explosionFactor, explosionStep];
-	cells534Active = cells534ActiveAndInactive[[1]];
-	cells534Inactive = cells534ActiveAndInactive[[2]];
-	componentCellsActiveAndInactive = Map[explodeCellsByStep[#, cells534Centers, explosionFactor, explosionStep]&, componentCells];
-	componentCellsActive = Map[#[[1]]&, componentCellsActiveAndInactive];
-	componentCellsInactive = Map[#[[2]]&, componentCellsActiveAndInactive];
-
-	(* vertexNorm = HNorm[cells534[[1]][[1]][[1]]]; *)
+	(* vertexNorm = HNorm[cells[[1]][[1]][[1]]]; *)
 	(* Print["vertexNorm"]; *)
 	(* Print[vertexNorm]; *)
 
@@ -204,9 +192,9 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	(* componentEdges = Map[Join[Flatten[Map[getEdgesFromFace, #], 1]]&, componentFaces]; *)
 	(* componentVertices = Map[Join[Flatten[#, 1]]&, componentFaces]; *)
 
-	faces534Active = Join[Flatten[cells534Active, 1]];	
+	faces534Active = Join[Flatten[cellsActive, 1]];	
 	edges534Active = Join[ Flatten[Map[getEdgesFromFace, faces534Active], 1]];
-	faces534Inactive = Join[Flatten[cells534Inactive, 1]];	
+	faces534Inactive = Join[Flatten[cellsInactive, 1]];	
 	edges534Inactive = Join[ Flatten[Map[getEdgesFromFace, faces534Inactive], 1]];
 	(* vertices534 = Join[ Flatten[faces534, 1]]; *)
 
@@ -219,7 +207,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	(* Print[Map[Length, componentVertices]]; *)
 
 	Print["The counts of active and inactive 534 cells, faces, edges"];
-	Print[Map[Length, {cells534Active, cells534Inactive}]];
+	Print[Map[Length, {cellsActive, cellsInactive}]];
 	Print[Map[Length, {faces534Active, faces534Inactive}]];
 	Print[Map[Length, {edges534Active, edges534Inactive}]];
 
@@ -246,7 +234,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	edges534Inactive = getSplitEdges[edges534Inactive];
 
 	surfaces = {};
-	cells534Centers = Map[getCellCenter, Join[cells534Active, cells534Inactive]];
+	cellsCenters = Map[getCellCenter, Join[cellsActive, cellsInactive]];
 	For[compIndex=1, compIndex<=Length[componentCellsActiveAndInactive],compIndex++,
 		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
 			cellsTuple = componentCellsActiveAndInactive[[compIndex]];
@@ -261,7 +249,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 				For[cid = 1, cid <= Length[cells], cid++,
 					sampleCell = cells[[cid]];
-					sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cells534Centers, SameTest -> ApproxSamePoint ]] > 0;
+					sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cellsCenters, SameTest -> ApproxSamePoint ]] > 0;
 					cellHeight = getCellHeight[sampleCell];
 
 					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
@@ -289,41 +277,39 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		];
 	];
 
-	If[show534,
-		For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
-			cells = cells534ActiveAndInactive[[activeFlag]];
-			opacity = If[activeFlag == 1, 
-				getOpacityByExplosion[explosionFactor],
-				1
+	For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
+		cells = cellsActiveAndInactive[[activeFlag]];
+		opacity = If[activeFlag == 1, 
+			getOpacityByExplosion[explosionFactor],
+			1
+		];
+		Print["{opacity, Length[cells]}"];
+		Print[{opacity, Length[cells]}];
+
+		For[cid = 1, cid <= Length[cells], cid++,
+			sampleCell = cells[[cid]];
+			cellHeight = getCellHeight[sampleCell];
+			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+			cellHeight = getCellHeight[sampleCell];
+
+			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
+				triangle = triangles[[triangleIndex]];
+				norm = HNorm[triangle[[1]]];
+				planarPoints[l1_, l2_] := 
+					l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
+					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
+				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
+				color = color534;
+				surface = ParametricPlot3D[
+					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
+					PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
+				];
+				AppendTo[surfaces, surface];
 			];
-			Print["{opacity, Length[cells]}"];
-			Print[{opacity, Length[cells]}];
 
-			For[cid = 1, cid <= Length[cells], cid++,
-				sampleCell = cells[[cid]];
-				cellHeight = getCellHeight[sampleCell];
-				triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-				cellHeight = getCellHeight[sampleCell];
-
-				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-					triangle = triangles[[triangleIndex]];
-					norm = HNorm[triangle[[1]]];
-					planarPoints[l1_, l2_] := 
-						l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
-					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
-					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-					color = color534;
-					surface = ParametricPlot3D[
-						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-						PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
-					];
-					AppendTo[surfaces, surface];
-				];
-
-				If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
-					range = Norm[poincarePoints[0, 0]] * rangeFactor;
-				];
+			If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+				range = Norm[poincarePoints[0, 0]] * rangeFactor;
 			];
 		];
 	];
@@ -500,9 +486,10 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-exportAnimation[];
+(* exportAnimation[]; *)
 
-(* exportFrame[0.0, 1, "test"]; *)
+exportFrame[0.0, 1, "test", False];
+
 (* 
 for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
  *)

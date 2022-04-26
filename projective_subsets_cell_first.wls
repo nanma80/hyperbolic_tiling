@@ -236,3 +236,20 @@ Print[Map[Length, allSubsets]];
 Print["All subsets before dedup, after dedup (should be same), all cell count"];
 Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[cells]}];
 
+(* 
+normalizedFaceCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, faces ];
+Print[Length[normalizedFaceCenters]];
+facesSubsets = getAllSubsets[normalizedFaceCenters, reflectionCenters];
+Print["number of face subsets:"];
+Print[Length[facesSubsets]];
+Print["faces in all subsets:"];
+Print[Map[Length, facesSubsets]];
+
+normalizedEdgeCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, edges ];
+Print[Length[normalizedEdgeCenters]];
+edgesSubsets = getAllSubsets[normalizedEdgeCenters, reflectionCenters];
+Print["number of face subsets:"];
+Print[Length[edgesSubsets]];
+Print["faces in all subsets:"];
+Print[Map[Length, edgesSubsets]];
+ *)
