@@ -13,8 +13,12 @@ If[Length[argv] >= 3,
 ];
 
 cellThreshold = 100;
-(* cellThreshold = 300; *)
+cellThreshold = 300;
 (* cellThreshold = 1000; *)
+
+If[Length[argv] >= 4, 
+	cellThreshold = ToExpression[argv[[4]]]
+];
 
 cellFirst = True;
 (* cellFirst = False; *)
@@ -195,7 +199,8 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	cells = {cell1};
 
-	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThreshold, gIndex++,
+	cellThresholdStep1 = If[cellFirst, cellThreshold * 0.6, cellThreshold];
+	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThresholdStep1, gIndex++,
 		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> sameCellCenter];
 
 		countStart = -1;
