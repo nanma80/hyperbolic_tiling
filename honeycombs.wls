@@ -204,7 +204,7 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> sameCellCenter];
 
 		countStart = -1;
-		For[i = 0, i < 10 && countStart != Length[cells], i++,
+		For[i = 0, i < 10 && countStart != Length[cells] && If[cellFirst, Length[cells] < cellThresholdStep1, True], i++,
 			countStart = Length[cells];
 			
 			For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
