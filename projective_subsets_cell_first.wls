@@ -6,6 +6,9 @@
 (* models = {"klein"}; *)
 models = {"poincare"};
 
+computeFaceEdgeSubsets = False;
+(* computeFaceEdgeSubsets = True; *)
+
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 3, 
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]]; r = ToExpression[argv[[3]]],
@@ -228,7 +231,7 @@ reflectionCenters = Join[ vertices, normalizedCellCenters ];
 allSubsets = getAllSubsetsThroughCache[normalizedCellCenters, reflectionCenters];
 
 (* Print[allSubsets]; *)
-Print["number of subsets:"];
+Print["number of cell subsets:"];
 Print[Length[allSubsets]];
 Print["cells in all subsets:"];
 Print[Map[Length, allSubsets]];
@@ -236,20 +239,47 @@ Print[Map[Length, allSubsets]];
 Print["All subsets before dedup, after dedup (should be same), all cell count"];
 Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[cells]}];
 
-(* 
-normalizedFaceCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, faces ];
-Print[Length[normalizedFaceCenters]];
-facesSubsets = getAllSubsets[normalizedFaceCenters, reflectionCenters];
-Print["number of face subsets:"];
-Print[Length[facesSubsets]];
-Print["faces in all subsets:"];
-Print[Map[Length, facesSubsets]];
+If[computeFaceEdgeSubsets,
+	normalizedFaceCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, faces ];
+	Print[Length[normalizedFaceCenters]];
+	facesSubsets = getAllSubsets[normalizedFaceCenters, reflectionCenters];
+	Print["number of face subsets:"];
+	Print[Length[facesSubsets]];
+	Print["faces in all subsets:"];
+	Print[Map[Length, facesSubsets]];
 
-normalizedEdgeCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, edges ];
-Print[Length[normalizedEdgeCenters]];
-edgesSubsets = getAllSubsets[normalizedEdgeCenters, reflectionCenters];
-Print["number of face subsets:"];
-Print[Length[edgesSubsets]];
-Print["faces in all subsets:"];
-Print[Map[Length, edgesSubsets]];
- *)
+	normalizedEdgeCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, edges ];
+	Print[Length[normalizedEdgeCenters]];
+	edgesSubsets = getAllSubsets[normalizedEdgeCenters, reflectionCenters];
+	Print["number of edge subsets:"];
+	Print[Length[edgesSubsets]];
+	Print["edges in all subsets:"];
+	Print[Map[Length, edgesSubsets]];
+
+	verticesSubsets = getAllSubsets[vertices, reflectionCenters];
+	Print["number of vertex subsets:"];
+	Print[Length[verticesSubsets]];
+	Print["vertices in all subsets:"];
+	Print[Map[Length, verticesSubsets]];
+
+	Print["Summary"];
+	Print["number of cell subsets:"];
+	Print[Length[allSubsets]];
+	Print["cells in all subsets:"];
+	Print[Map[Length, allSubsets]];
+
+	Print["number of face subsets:"];
+	Print[Length[facesSubsets]];
+	Print["faces in all subsets:"];
+	Print[Map[Length, facesSubsets]];
+
+	Print["number of edge subsets:"];
+	Print[Length[edgesSubsets]];
+	Print["edges in all subsets:"];
+	Print[Map[Length, edgesSubsets]];
+
+	Print["number of vertex subsets:"];
+	Print[Length[verticesSubsets]];
+	Print["vertices in all subsets:"];
+	Print[Map[Length, verticesSubsets]];
+];
