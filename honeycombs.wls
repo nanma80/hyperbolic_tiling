@@ -63,7 +63,7 @@ ApproxSamePointLoose[point1_, point2_] := Round[point1, 100 epsilon] == Round[po
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePointLoose[Total[N[set1]], Total[N[set2]]];
-sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
+sameCellCenter[cell1_, cell2_] := ApproxSamePoint[getCellCenter[cell1], getCellCenter[cell2]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
 
@@ -326,6 +326,9 @@ vertices = data["vertices"];
 Print["Counts: cells, faces, edges, vertices"];
 Print[Map[Length, {cells, faces, edges, vertices}]];
 
+Print["unique cells"];
+uniqueCells = Union[cells, SameTest -> sameCellCenter];
+Print[Map[Length, {cells, uniqueCells}]];
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
