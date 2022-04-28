@@ -19,7 +19,7 @@ If[Length[argv] >= 4,
 
 cellThreshold = 100;
 cellThreshold = 300;
-cellThreshold = 1000;
+(* cellThreshold = 1000; *)
 
 plotTwoEdges = False;
 plotTwoEdges = True;
@@ -233,7 +233,19 @@ Print[Map[Length, {cells, faces, edges, vertices}]];
 normalizedCellCenters = Map[HNormalize[getCellCenter[#], HNorm[vertices[[1]]]]&, cells ];
 reflectionCenters = Join[ vertices, normalizedCellCenters ];
 
-allSubsets = getAllSubsetsThroughCache[vertices, reflectionCenters];
+Print["compute face subsets"];
+normalizedFaceCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, faces ];
+Print[Length[normalizedFaceCenters]];
+
+facesSubsets = getAllSubsets[normalizedFaceCenters, reflectionCenters];
+Print["number of face subsets:"];
+Print[Length[facesSubsets]];
+Print["faces in all subsets:"];
+Print[Map[Length, facesSubsets]];
+
+
+(* allSubsets = getAllSubsetsThroughCache[vertices, reflectionCenters]; *)
+allSubsets = getAllSubsets[vertices, reflectionCenters];
 
 (* Print[allSubsets]; *)
 Print["number of components:"];

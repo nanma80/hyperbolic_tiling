@@ -7,7 +7,7 @@
 models = {"poincare"};
 
 computeFaceEdgeSubsets = False;
-(* computeFaceEdgeSubsets = True; *)
+computeFaceEdgeSubsets = True;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 3, 
@@ -151,7 +151,7 @@ getAllSubsetsThroughCache[vertices_, reflectionCenters_] := Module[
 getAllSubsets[vertices_, reflectionCenters_] := Module[
 	{maxHeight, discoveredIndices, allSubsets, remaining, seedIndex, subset1, k, verticesMap, subsetIndices},
 
-	maxHeight = Max[Map[#[[1]]&, vertices]];
+	maxHeight = Max[Map[#[[1]]&, vertices]] * 1.5;
 	
 	allSubsets = {};
 
@@ -240,16 +240,26 @@ Print["All subsets before dedup, after dedup (should be same), all cell count"];
 Print[{Total[Map[Length, allSubsets]], Length[Apply[Union, allSubsets]], Length[cells]}];
 
 If[computeFaceEdgeSubsets,
+	(* uniqueVertices = Union[vertices, SameTest -> ApproxSamePointLoose]; *)
+	(* Print["unique vertex count: " <> IntegerString[Length[uniqueVertices]]]; *)
+
 	normalizedFaceCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, faces ];
 	Print[Length[normalizedFaceCenters]];
+
+	(* uniqueFaceCenters = Union[normalizedFaceCenters, SameTest -> ApproxSamePointLoose]; *)
+	(* Print["unique face count: " <> IntegerString[Length[uniqueFaceCenters]]]; *)
+
+	normalizedEdgeCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, edges ];
+	Print[Length[normalizedEdgeCenters]];
+	(* uniqueEdgeCenters = Union[normalizedEdgeCenters, SameTest -> ApproxSamePointLoose]; *)
+	(* Print["unique edge count: " <> IntegerString[Length[uniqueEdgeCenters]]]; *)
+
 	facesSubsets = getAllSubsets[normalizedFaceCenters, reflectionCenters];
 	Print["number of face subsets:"];
 	Print[Length[facesSubsets]];
 	Print["faces in all subsets:"];
 	Print[Map[Length, facesSubsets]];
 
-	normalizedEdgeCenters = Map[HNormalize[Mean[#], HNorm[vertices[[1]]]]&, edges ];
-	Print[Length[normalizedEdgeCenters]];
 	edgesSubsets = getAllSubsets[normalizedEdgeCenters, reflectionCenters];
 	Print["number of edge subsets:"];
 	Print[Length[edgesSubsets]];
