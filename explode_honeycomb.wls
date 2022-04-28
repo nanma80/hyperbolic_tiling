@@ -6,23 +6,9 @@ frameCount = 100;
 (* maxExplosionFactor = 8.0; *)
 (* frameCount = 6; *)
 
-(* models = {"hyperboloid", "klein", "poincare"}; *)
-(* models = {"klein", "poincare"}; *)
-(* models = {"hyperboloid"}; *)
-(* models = {"klein"}; *)
-(* models = {"poincare"}; *)
-
-(* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
-(* heightThreshold = 2; *)
-(* heightThreshold = 4; *)
-(* heightThreshold = 5; *)
-(* heightThreshold = 7; *)
-
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
-
-showVertices = False;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -47,9 +33,7 @@ epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 1.25;
-colors = {Red, Green, Blue, Purple, Yellow};
-color534 = Gray;
-colorVertices = Cyan;
+colors = Join[{Red, Blue, Green, Yellow, Magenta, LightCyan, Brown, Orange, Pink, Darker[Gray, 0.2], Cyan}, RandomColor[80]];
 
 outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
@@ -208,6 +192,16 @@ If[FileExistsQ[subsetFileName],
 
 Print[allSubsets//Length];
 
+colorMap = <||>;
+For[sid = 1, sid <= Length[allSubsets], sid++,
+	subset = allSubsets[[sid]];
+	For[cid = 1, cid <= Length[subset], cid++,
+		cell=cells[[subset[[cid]]]];
+		cellCenter = Round[getCellCenter[cell], epsilon];
+		colorMap[cellCenter] = colors[[sid]]
+	];
+];
+
 newCellThreshold = cellThreshold;
 
 If[{p,q,r} == {3,5,3} && cellThreshold == 100,
@@ -218,14 +212,34 @@ If[{p,q,r} == {5,3,5} && cellThreshold == 100,
 	newCellThreshold = 73
 ];
 
+(* for testing, 1 + 20 *)
+(* newCellThreshold = 21; *)
+
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	(* Return[]; *)
+	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
+	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
+
+	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
+	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
+
+	If[copyLast,
+		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
+		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
+		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
+		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+		CopyFile[lastOutputFileName, outputFileName];
+		Return[];
+	];
+
 	cells = data["cells"];
 	cells = filterCells[cells, newCellThreshold];
+	(* Print[Map[getCellHeight, cells]]; *)
 	range = 0.6;
 	cellsCenterHeights = Map[getCellHeight, cells];
-	cellsCenters = Map[getCellCenter, cells];
+	cellsCenters = Map[Round[getCellCenter[#], epsilon]&, cells];
+	colorsByCells = Map[colorMap, cellsCenters];
 
 	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0];
 	cellsActive = cellsActiveAndInactive[[1]];
@@ -264,9 +278,11 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 				Print["Generating surface for cell id " <> IntegerString[cid]];
 			];
 			sampleCell = cells[[cid]];
+			isCenterCell = Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon;
+			cellOpacity = If[isCenterCell, 1, opacity];
 			cellHeight = getCellHeight[sampleCell];
 			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-			cellHeight = getCellHeight[sampleCell];
+			color = colorsByCells[[cid]];
 
 			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 				triangle = triangles[[triangleIndex]];
@@ -276,15 +292,14 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-				color = color534;
 				surface = ParametricPlot3D[
 					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-					PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
+					PlotStyle -> {color, Opacity[cellOpacity]}, Mesh -> None
 				];
 				AppendTo[surfaces, surface];
 			];
 
-			If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+			If[isCenterCell, 
 				range = Norm[poincarePoints[0, 0]] * rangeFactor;
 			];
 		];
@@ -313,31 +328,18 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	Print["Defined graph"];
 
-	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
-	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
-
-	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
-	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
-	If[copyLast,
-		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
-		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
-		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
-		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-		CopyFile[lastOutputFileName, outputFileName],	
-
-		If[exportToPov,
-		  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-		  Print["Exporting to POV ray"];
-		  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-		  Run[cropCommand];
-		  ,
-		  Export[outputFileName, graph];
-		];
-		Print["Saved an image to " <> outputFileName];
+	If[exportToPov,
+	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+	  Print["Exporting to POV ray"];
+	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+	  Run[cropCommand];
+	  ,
+	  Export[outputFileName, graph];
 	];
+	Print["Saved an image to " <> outputFileName];
 ];
 
 
@@ -350,7 +352,7 @@ exportAnimation[] := Module[
 		gifCommand
 	},
 
-	shapeWithParams = shape <> IntegerString[cellThreshold];
+	shapeWithParams = shape <> "_" <> IntegerString[newCellThreshold];
 	outputFrameFolderName = shapeWithParams <> "_frames";
 
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFrameFolderName}];
@@ -369,18 +371,29 @@ exportAnimation[] := Module[
 	Print["explosionFactors"];
 	Print[explosionFactors];
 
-	For[expId = 1, expId <= Length[explosionFactors], expId++,
+	expId = 1;
+	explosionFactor = explosionFactors[[expId]];
+	(* frameIndex++; *)
+	exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
+
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+		exportFrame[0, frameIndex++, outputFrameFolderName, True]
+	];
+
+	For[expId = 2, expId <= Length[explosionFactors], expId++,
 		explosionFactor = explosionFactors[[expId]];
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 3], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
-	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
+	gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay "
+	(* gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay "  *)
+		<> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
 
 	Print[gifCommand];
 	Run[gifCommand];
@@ -397,9 +410,12 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-(* exportAnimation[]; *)
+exportAnimation[];
 
-exportFrame[0.0, 1, "test", False];
+(* exportFrame[0.0, 1, "test", False]; *)
+(* exportFrame[0.5, 2, "test", False]; *)
+(* exportFrame[1.0, 3, "test", False]; *)
+(* exportFrame[4.0, 4, "test", False]; *)
 
 (* 
 for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
