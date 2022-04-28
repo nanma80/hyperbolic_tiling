@@ -6,23 +6,9 @@ frameCount = 100;
 (* maxExplosionFactor = 8.0; *)
 (* frameCount = 6; *)
 
-(* models = {"hyperboloid", "klein", "poincare"}; *)
-(* models = {"klein", "poincare"}; *)
-(* models = {"hyperboloid"}; *)
-(* models = {"klein"}; *)
-(* models = {"poincare"}; *)
-
-(* 2: 1 cell. 4: 7 cells per component. 5: 31 cells per component *)
-(* heightThreshold = 2; *)
-(* heightThreshold = 4; *)
-(* heightThreshold = 5; *)
-(* heightThreshold = 7; *)
-
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
-
-showVertices = False;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -47,11 +33,9 @@ epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 1.25;
-colors = {Red, Green, Blue, Purple, Yellow};
-color534 = Gray;
-colorVertices = Cyan;
+colors = Join[{Red, Blue, Green, Yellow, Magenta, LightCyan, Brown, Orange, Pink, Darker[Gray, 0.2], Cyan}, RandomColor[80]];
 
-outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
+outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 15;
@@ -143,6 +127,35 @@ getAllComponentsThroughCache[heightThreshold_] := Module[
   data
 ];
 
+filterCells[cells_, cellThreshold_] := Module[
+	{cellCenterHeights, heightTally, tallyCounts, includeCount, heightThreshold, levelIndex},
+
+	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+	tallyCounts = Map[#[[2]]&, heightTally];
+	Print[tallyCounts];
+
+	includeCount = 0;
+	heightThreshold = -1;
+	For[levelIndex = 1, levelIndex <= Length[heightTally], levelIndex++,
+		If[includeCount < cellThreshold,
+			includeCount += heightTally[[levelIndex]][[2]];
+			If[includeCount >= cellThreshold,
+				heightThreshold = heightTally[[levelIndex]][[1]] + epsilon
+			];
+		];
+	];
+
+	If[heightThreshold == -1,
+		heightThreshold = heightTally[[Length[heightTally]]][[1]] + epsilon
+	];
+
+	filteredCells = Select[cells, getCellCenter[#][[1]] <= heightThreshold&];
+	Print["Filter from " <> IntegerString[Length[cells]] <> " cells down to " <> IntegerString[Length[filteredCells]] <> " cells."];
+
+	filteredCells
+];
+
 dataFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_cell_first_" <> IntegerString[cellThreshold] <> ".wl"}];
 
 If[FileExistsQ[dataFileName], 
@@ -155,8 +168,17 @@ If[FileExistsQ[dataFileName],
 ];
 
 cells = data["cells"];
-
 Print[cells//Length];
+
+(* 
+353:
+{1, 20, 60, 12, 120}
+1, 21, 81, 93, 213
+
+535:
+{1, 12, 60, 120}
+1, 13, 73, 193
+ *)
 
 subsetFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_cell_first_" <> IntegerString[cellThreshold] <> "_subsets_cell_first.wl"}];
 
@@ -170,112 +192,77 @@ If[FileExistsQ[subsetFileName],
 
 Print[allSubsets//Length];
 
-Exit[];
+colorMap = <||>;
+For[sid = 1, sid <= Length[allSubsets], sid++,
+	subset = allSubsets[[sid]];
+	For[cid = 1, cid <= Length[subset], cid++,
+		cell=cells[[subset[[cid]]]];
+		cellCenter = Round[getCellCenter[cell], epsilon];
+		colorMap[cellCenter] = colors[[sid]]
+	];
+];
+
+newCellThreshold = cellThreshold;
+
+If[{p,q,r} == {3,5,3} && cellThreshold == 100,
+	newCellThreshold = 93
+];
+
+If[{p,q,r} == {5,3,5} && cellThreshold == 100,
+	newCellThreshold = 73
+];
+
+(* for testing, 1 + 20 *)
+(* newCellThreshold = 21; *)
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	(* Return[]; *)
+	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
+	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
+
+	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
+	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
+
+	If[copyLast,
+		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
+		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
+		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
+		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+		CopyFile[lastOutputFileName, outputFileName];
+		Return[];
+	];
+
 	cells = data["cells"];
+	cells = filterCells[cells, newCellThreshold];
+	(* Print[Map[getCellHeight, cells]]; *)
 	range = 0.6;
 	cellsCenterHeights = Map[getCellHeight, cells];
-	cellsCenters = Map[getCellCenter, cells];
+	cellsCenters = Map[Round[getCellCenter[#], epsilon]&, cells];
+	colorsByCells = Map[colorMap, cellsCenters];
 
 	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0];
 	cellsActive = cellsActiveAndInactive[[1]];
 	cellsInactive = cellsActiveAndInactive[[2]];
-
-	(* vertexNorm = HNorm[cells[[1]][[1]][[1]]]; *)
-	(* Print["vertexNorm"]; *)
-	(* Print[vertexNorm]; *)
-
-	(* componentFaces = Map[Join[Flatten[#, 1]] &, componentCells]; *)
-	(* componentEdges = Map[Join[Flatten[Map[getEdgesFromFace, #], 1]]&, componentFaces]; *)
-	(* componentVertices = Map[Join[Flatten[#, 1]]&, componentFaces]; *)
-
-	faces534Active = Join[Flatten[cellsActive, 1]];	
-	edges534Active = Join[ Flatten[Map[getEdgesFromFace, faces534Active], 1]];
-	faces534Inactive = Join[Flatten[cellsInactive, 1]];	
-	edges534Inactive = Join[ Flatten[Map[getEdgesFromFace, faces534Inactive], 1]];
-	(* vertices534 = Join[ Flatten[faces534, 1]]; *)
-
-
-	Print["The counts of active and inactive cells for all components"];
-	Print[Map[Length, componentCellsActive]];
-	Print[Map[Length, componentCellsInactive]];
-	(* Print[Map[Length, componentFaces]]; *)
-	(* Print[Map[Length, componentEdges]]; *)
-	(* Print[Map[Length, componentVertices]]; *)
-
-	Print["The counts of active and inactive 534 cells, faces, edges"];
 	Print[Map[Length, {cellsActive, cellsInactive}]];
-	Print[Map[Length, {faces534Active, faces534Inactive}]];
-	Print[Map[Length, {edges534Active, edges534Inactive}]];
+
+	facesActive = Join[Flatten[cellsActive, 1]];	
+	edgesActive = Join[ Flatten[Map[getEdgesFromFace, facesActive], 1]];
+	facesInactive = Join[Flatten[cellsInactive, 1]];	
+	edgesInactive = Join[ Flatten[Map[getEdgesFromFace, facesInactive], 1]];
+
+	Print["The counts of active and inactive cells, faces, edges"];
+	Print[Map[Length, {cellsActive, cellsInactive}]];
+	Print[Map[Length, {facesActive, facesInactive}]];
+	Print[Map[Length, {edgesActive, edgesInactive}]];
 
 	projectTo3d[v_] := getPoincareExploded[v, HNorm[v]];
 
-	(* splitCompEdges = {}; *)
-
-(* 	For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-		edges = componentEdges[[compIndex]];
-		splitEdges = {};
-		For[eid = 1, eid <= Length[edges], eid++,
-			edge = edges[[eid]];
-			norm = HNorm[edge[[1]]];
-			splitParts = splitEdge[edge, splitEdgeParts];
-			splitParts = Map[HNormalize[#, norm]&, splitParts, {2}];
-			splitEdges = Join[splitEdges, splitParts];
-		];
-		AppendTo[splitCompEdges, splitEdges]
-	]; *)
-
-	(* split 534 edges *)
-
-	edges534Active = getSplitEdges[edges534Active];
-	edges534Inactive = getSplitEdges[edges534Inactive];
+	edgesActive = getSplitEdges[edgesActive];
+	edgesInactive = getSplitEdges[edgesInactive];
 
 	surfaces = {};
 	cellsCenters = Map[getCellCenter, Join[cellsActive, cellsInactive]];
-	For[compIndex=1, compIndex<=Length[componentCellsActiveAndInactive],compIndex++,
-		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
-			cellsTuple = componentCellsActiveAndInactive[[compIndex]];
-			For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
-				opacity = If[activeFlag == 1, 
-					getOpacityByExplosion[explosionFactor],
-					1
-				];
-				cells = cellsTuple[[activeFlag]];
-				Print["{opacity, Length[cells]}"];
-				Print[{opacity, Length[cells]}];
-
-				For[cid = 1, cid <= Length[cells], cid++,
-					sampleCell = cells[[cid]];
-					sharing534Centers = Length[Intersection[{getCellCenter[sampleCell]}, cellsCenters, SameTest -> ApproxSamePoint ]] > 0;
-					cellHeight = getCellHeight[sampleCell];
-
-					triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-					For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-						triangle = triangles[[triangleIndex]];
-						norm = HNorm[triangle[[1]]];
-						planarPoints[l1_, l2_] := 
-							l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-							(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
-						normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
-						poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-						color = Lighter[colors[[compIndex]], If[sharing534Centers, 0, 0.1]];
-						surface = ParametricPlot3D[
-							poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-							PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
-						];
-						AppendTo[surfaces, surface];
-					];
-
-					If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
-						range = Norm[poincarePoints[0, 0]] * rangeFactor;
-					];
-				];			
-			];			
-		];
-	];
 
 	For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
 		cells = cellsActiveAndInactive[[activeFlag]];
@@ -287,10 +274,15 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		Print[{opacity, Length[cells]}];
 
 		For[cid = 1, cid <= Length[cells], cid++,
+			If[Mod[cid, 10] == 1,
+				Print["Generating surface for cell id " <> IntegerString[cid]];
+			];
 			sampleCell = cells[[cid]];
+			isCenterCell = Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon;
+			cellOpacity = If[isCenterCell, 1, opacity];
 			cellHeight = getCellHeight[sampleCell];
 			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
-			cellHeight = getCellHeight[sampleCell];
+			color = colorsByCells[[cid]];
 
 			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 				triangle = triangles[[triangleIndex]];
@@ -300,15 +292,14 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-				color = color534;
 				surface = ParametricPlot3D[
 					poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
-					PlotStyle -> {color, Opacity[opacity]}, Mesh -> None
+					PlotStyle -> {color, Opacity[cellOpacity]}, Mesh -> None
 				];
 				AppendTo[surfaces, surface];
 			];
 
-			If[Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon, 
+			If[isCenterCell, 
 				range = Norm[poincarePoints[0, 0]] * rangeFactor;
 			];
 		];
@@ -321,71 +312,6 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	thicknessDecayExponent = 1.0;
 
 	graphElements = {};
-
-(* 	If[showVertices,
-		vertices = Apply[Join, componentVertices];
-
-		AppendTo[graphElements,
-			{
-				Opacity[1], FaceForm[colorVertices], 
-				Table[
-		            Sphere[
-		                projectTo3d[vertices[[vIndex]]],
-		                thickness * 10/(1 + (vertices[[vIndex]][[1]]/HNorm[vertices[[vIndex]]] )^thicknessDecayExponent)
-		            ], 
-		            {vIndex, 1, Length[vertices]}
-		        ]
-			}
-		];
-	]; *)
-
-	(* For[compIndex=1, compIndex<=Length[componentEdges],compIndex++,
-		If[show534==False && (displayCompIndex == 0 || displayCompIndex == compIndex),
-			edges = componentEdges[[compIndex]];
-			color = colors[[compIndex]];
-			AppendTo[graphElements,
-				Table[{
-					Opacity[
-						getOpacityByHeight[(edges[[edgeIndex]][[1]][[1]]+edges[[edgeIndex]][[2]][[1]])/2]
-					], 
-					FaceForm[color], 
-            Cylinder[
-                Map[projectTo3d, edges[[edgeIndex]]], 
-                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
-            ], 
-            {edgeIndex, 1, Length[edges]}
-				}];
-			];
-
-			cells = componentCells[[compIndex]];
-			sampleCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon & ];
-		];
-	]; *)
-
-	If[show534==False,
-		edgesTuple = {edges534Active, edges534Inactive};
-		For[activeFlag = 1, activeFlag <= 2, activeFlag++,
-			edges = edgesTuple[[activeFlag]];
-			opacity = If[activeFlag == 1, 
-				getOpacityByExplosion[explosionFactor],
-				1
-			];
-			Print["{opacity, Length[edges]}"];
-			Print[{opacity, Length[edges]}];
-			AppendTo[graphElements,
-				{
-					Opacity[opacity], FaceForm[color534], 
-					Table[
-			            Cylinder[
-			                Map[projectTo3d, edges[[edgeIndex]]], 
-			                thickness * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
-			            ], 
-			            {edgeIndex, 1, Length[edges]}
-			        ]
-				}
-			];
-		];
-	];
 
 	Print["Generated graph elements"];
 
@@ -402,31 +328,18 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	Print["Defined graph"];
 
-	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
-	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
-
-	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
-	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
-	If[copyLast,
-		lastOutputFileName = "frame_" <> IntegerString[frameIndex-1, 10, 4] <> ".png";
-		lastOutputFileName = FileNameJoin[{outputFrameFolder, lastOutputFileName}];
-		Print["Copying last file from " <> lastOutputFileName <> " to " <> outputFileName];
-		If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-		CopyFile[lastOutputFileName, outputFileName],	
-
-		If[exportToPov,
-		  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-		  Print["Exporting to POV ray"];
-		  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-		  Run[cropCommand];
-		  ,
-		  Export[outputFileName, graph];
-		];
-		Print["Saved an image to " <> outputFileName];
+	If[exportToPov,
+	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+	  Print["Exporting to POV ray"];
+	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+	  Run[cropCommand];
+	  ,
+	  Export[outputFileName, graph];
 	];
+	Print["Saved an image to " <> outputFileName];
 ];
 
 
@@ -439,7 +352,7 @@ exportAnimation[] := Module[
 		gifCommand
 	},
 
-	shapeWithParams = shape <> IntegerString[cellThreshold];
+	shapeWithParams = shape <> "_" <> IntegerString[newCellThreshold];
 	outputFrameFolderName = shapeWithParams <> "_frames";
 
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFrameFolderName}];
@@ -458,18 +371,29 @@ exportAnimation[] := Module[
 	Print["explosionFactors"];
 	Print[explosionFactors];
 
-	For[expId = 1, expId <= Length[explosionFactors], expId++,
+	expId = 1;
+	explosionFactor = explosionFactors[[expId]];
+	(* frameIndex++; *)
+	exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
+
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+		exportFrame[0, frameIndex++, outputFrameFolderName, True]
+	];
+
+	For[expId = 2, expId <= Length[explosionFactors], expId++,
 		explosionFactor = explosionFactors[[expId]];
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / If[explosionStep == 1 && show534 == False, 6, 3]], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
-	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
+	gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay "
+	(* gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay "  *)
+		<> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
 
 	Print[gifCommand];
 	Run[gifCommand];
@@ -486,9 +410,12 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-(* exportAnimation[]; *)
+exportAnimation[];
 
-exportFrame[0.0, 1, "test", False];
+(* exportFrame[0.0, 1, "test", False]; *)
+(* exportFrame[0.5, 2, "test", False]; *)
+(* exportFrame[1.0, 3, "test", False]; *)
+(* exportFrame[4.0, 4, "test", False]; *)
 
 (* 
 for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
