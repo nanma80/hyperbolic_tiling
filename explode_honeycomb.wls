@@ -1,7 +1,7 @@
 #!/usr/bin/env wolframscript
 
 maxExplosionFactor = 10.0;
-frameCount = 100;
+frameCount = 150;
 
 (* maxExplosionFactor = 8.0; *)
 (* frameCount = 6; *)
@@ -71,7 +71,11 @@ sameCenter[set1_, set2_] := ApproxSamePoint[Mean[N[set1]], Mean[N[set2]]];
 sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1]];
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
-getOpacityByExplosion[factor_] := If[factor < maxExplosionFactor/2, 1, 2 - 2/maxExplosionFactor * factor];
+opaqueFactor = 2/3;
+getOpacityByExplosion[factor_] := 
+  If[factor < maxExplosionFactor*opaqueFactor, 1, 
+   1/(1 - opaqueFactor) - 1/(1 - opaqueFactor)/maxExplosionFactor*factor];
+
 getSplitEdges[edges_] := Module[
 	{splitEdges, eid, edge, norm, splitParts},
 	splitEdges = {};
@@ -93,7 +97,7 @@ explodedCell[cell_, explosionFactor_] := Map[
 	(# + Mean[Map[Mean,cell]] * (HNorm[First[First[cell]]]/HNorm[Mean[Map[Mean, cell]]])^1.5 * explosionFactor)&, 
 	cell, {2}];
 
-explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_] := Module[
+explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, heightsMap_] := Module[
 	{inactiveCells, activeCells},
 
 	If[explosionStep == 0,
@@ -109,7 +113,15 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_] :=
 			(* activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]; *)
 		];
 	];
-	activeCells = Map[explodedCell[#, explosionFactor]&, activeCells];
+
+	For[acId = 1, acId <= Length[activeCells], acId++,
+		cell = activeCells[[acId]];
+		height = getCellHeight[cell];
+		layer = heightsMap[Round[height, epsilon]];
+		nonlinearFactor = getNonlinearFactor[explosionFactor, layer];
+		activeCells[[acId]] = explodedCell[cell, nonlinearFactor];
+	];
+	(* activeCells = Map[explodedCell[#, explosionFactor]&, activeCells]; *)
 	{activeCells, inactiveCells}
 ];
 
@@ -130,7 +142,7 @@ getAllComponentsThroughCache[heightThreshold_] := Module[
 filterCells[cells_, cellThreshold_] := Module[
 	{cellCenterHeights, heightTally, tallyCounts, includeCount, heightThreshold, levelIndex},
 
-	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+	cellCenterHeights = Map[getCellHeight, cells];
 	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
 	tallyCounts = Map[#[[2]]&, heightTally];
 	Print[tallyCounts];
@@ -154,6 +166,17 @@ filterCells[cells_, cellThreshold_] := Module[
 	Print["Filter from " <> IntegerString[Length[cells]] <> " cells down to " <> IntegerString[Length[filteredCells]] <> " cells."];
 
 	filteredCells
+];
+
+getNonlinearFactor[linear_, layer_] := Module[
+	{layerOffset, linearOffset, returnValue},
+
+	layerOffset = If[layer > 2, layer - 2, 0];
+	linearOffset = linear + layerOffset*2;
+	returnValue = linearOffset^2/maxExplosionFactor;
+	If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor];
+	If[linearOffset < 0, returnValue = 0];
+	returnValue
 ];
 
 dataFileName = FileNameJoin[{dataFolder, "hyper_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> "_cell_first_" <> IntegerString[cellThreshold] <> ".wl"}];
@@ -203,13 +226,18 @@ For[sid = 1, sid <= Length[allSubsets], sid++,
 ];
 
 newCellThreshold = cellThreshold;
+layers = 1;
 
 If[{p,q,r} == {3,5,3} && cellThreshold == 100,
-	newCellThreshold = 93
+	(* 1 + 20 + 60 + 12 *)
+	newCellThreshold = 93;
+	layers = 4;
 ];
 
 If[{p,q,r} == {5,3,5} && cellThreshold == 100,
-	newCellThreshold = 73
+	(* 1 + 12 + 60 *)
+	newCellThreshold = 73;
+	layers = 3;
 ];
 
 (* for testing, 1 + 20 *)
@@ -235,13 +263,25 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	cells = data["cells"];
 	cells = filterCells[cells, newCellThreshold];
-	(* Print[Map[getCellHeight, cells]]; *)
+
+	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+	tallyCounts = Map[#[[2]]&, heightTally];
+	Print["heights"];
+	Print[heightTally];
+	Print[tallyCounts];
+	heightsMap = <||>;
+	For[htIndex = 1,htIndex<=Length[heightTally],htIndex++,
+		heightsMap[Round[heightTally[[htIndex]][[1]], epsilon]] = htIndex;
+	];
+	Print[heightsMap];
+
 	range = 0.6;
 	cellsCenterHeights = Map[getCellHeight, cells];
 	cellsCenters = Map[Round[getCellCenter[#], epsilon]&, cells];
 	colorsByCells = Map[colorMap, cellsCenters];
 
-	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0];
+	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0, heightsMap];
 	cellsActive = cellsActiveAndInactive[[1]];
 	cellsInactive = cellsActiveAndInactive[[2]];
 	Print[Map[Length, {cellsActive, cellsInactive}]];
@@ -342,7 +382,6 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print["Saved an image to " <> outputFileName];
 ];
 
-
 exportAnimation[] := Module[
 	{
 		gifFileName,
@@ -363,10 +402,9 @@ exportAnimation[] := Module[
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
 	frameIndex = 1;
-	explosionFactors = Table[
-		(1 - Sin[Pi/2 * (k/(frameCount - 1))]) * maxExplosionFactor,
-		{k, 0, frameCount-1}
-	];
+	explosionFactors = Table[k * 1.0, 
+		{k, maxExplosionFactor, (-layers + 2)*2, 
+			-(maxExplosionFactor + (layers - 2)*2)/(frameCount - 1)}];
 
 	Print["explosionFactors"];
 	Print[explosionFactors];
