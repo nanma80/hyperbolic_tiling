@@ -172,7 +172,7 @@ getNonlinearFactor[linear_, layer_] := Module[
 	{layerOffset, linearOffset, returnValue},
 
 	layerOffset = If[layer > 2, layer - 2, 0];
-	linearOffset = linear + layerOffset*2;
+	linearOffset = linear + layerOffset*getNonlinearFactor;
 	returnValue = linearOffset^2/maxExplosionFactor;
 	If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor];
 	If[linearOffset < 0, returnValue = 0];
@@ -227,6 +227,7 @@ For[sid = 1, sid <= Length[allSubsets], sid++,
 
 newCellThreshold = cellThreshold;
 layers = 1;
+delayFactor = If[{p,q,r} == {3,5,3}, 2, 4];
 
 If[{p,q,r} == {3,5,3} && cellThreshold == 100,
 	(* 1 + 20 + 60 + 12 *)
@@ -403,8 +404,8 @@ exportAnimation[] := Module[
 
 	frameIndex = 1;
 	explosionFactors = Table[k * 1.0, 
-		{k, maxExplosionFactor, (-layers + 2)*2, 
-			-(maxExplosionFactor + (layers - 2)*2)/(frameCount - 1)}];
+		{k, maxExplosionFactor, (-layers + 2)*delayFactor, 
+			-(maxExplosionFactor + (layers - 2)*delayFactor)/(frameCount - 1)}];
 
 	Print["explosionFactors"];
 	Print[explosionFactors];
