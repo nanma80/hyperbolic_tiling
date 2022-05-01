@@ -1,10 +1,10 @@
 #!/usr/bin/env wolframscript
 
 (* models = {"hyperboloid", "klein", "poincare"}; *)
-(* models = {"klein", "poincare"}; *)
+models = {"klein", "poincare"};
 (* models = {"hyperboloid"}; *)
 (* models = {"klein"}; *)
-models = {"poincare"};
+(* models = {"poincare"}; *)
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 3, 
@@ -21,7 +21,7 @@ If[Length[argv] >= 4,
 ];
 
 cellFirst = True;
-cellFirst = False;
+(* cellFirst = False; *)
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
 shape = "bitruncated_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm] <> If[cellFirst, "_cell_first", ""];
@@ -33,7 +33,7 @@ imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 0.8;
 
-outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
+outputFolder = FileNameJoin[{imageFolder, "honeycombs", "bitruncated_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm]}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 8;
@@ -237,12 +237,12 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	cells = {cell1, cell1Flip};
 
-	cellThresholdStep1 = If[cellFirst, cellThreshold * 0.6, cellThreshold];
+	cellThresholdStep1 = If[cellFirst, cellThreshold, cellThreshold];
 	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThresholdStep1, gIndex++,
 		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> sameCellCenter];
 
 		countStart = -1;
-		For[i = 0, i < 10 && countStart != Length[cells] && If[cellFirst, Length[cells] < cellThresholdStep1, True], i++,
+		For[i = 0, i < 10 && countStart != Length[cells], i++,
 			countStart = Length[cells];
 			
 			For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
@@ -250,6 +250,11 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 			];
 
 			Print["gIndex = "  <> IntegerString[gIndex] <> "; i = "  <> IntegerString[i] <> ". Generated " <> IntegerString[Length[cells]] <> " cells so far"];
+			normalizedCellCenters = Map[HNormalize[getCellCenter[#],1]&, cells];
+			normalizedCellCenterHeights = Map[#[[1]]&, normalizedCellCenters];
+			normalizedHeightTally = Tally[normalizedCellCenterHeights, ApproxSamePoint]//Sort;
+			Print["normalizedHeightTally"];
+			Print[normalizedHeightTally];
 		];
 	];
 
@@ -266,7 +271,6 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 	Print["normalizedHeightTally"];
 	Print[normalizedHeightTally];
 
-
 	If[cellFirst,
 		cells = filterCells[cells, cellThreshold];
 		cellCenterHeights = Map[getCellHeight, cells];
@@ -278,56 +282,23 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 		sampleCellCenter = HNormalize[getCellCenter[sampleCell], 1];
 		Print[sampleCellCenter];
 
-		cellCenterToX = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{sampleCellCenter[[{2,3,4}]], {1, 0, 0}}]}}];
-		transformedCenter = sampleCellCenter.Transpose[cellCenterToX];
-		setup = Transpose[cellCenterToX].Boost[-ArcCosh[transformedCenter[[1]]]];
+		pentagons = Select[sampleCell, Length[#]==5&];
 
 		zVector = If[p == 3 && q == 5 && r == 3,
 			(* for 353, orient a vertex along the z axis *)
-			HNormalize[sampleCell[[1]][[1]].setup, 1],
+			HNormalize[sampleCell[[1]][[1]], 1],
 			(* for 535, 435, 534, orient a face center along the z axis *)
-			HNormalize[Mean[sampleCell[[1]]].setup, 1]
+			HNormalize[Mean[pentagons[[1]]], 1]
 		];
 
+		Print[zVector];
 		zVectorToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{zVector[[Range[2,4]]], {0, 0, 1}}]}}];
-		setup = setup.Transpose[zVectorToZaxis];
+		setup = Transpose[zVectorToZaxis];
+		Map[Print, setup];
 
-		cells = Map[#.setup &, cells];
-		cells = filterCells[cells, cellThreshold];
-		sampleCell = sampleCell.setup;
-
-		sampleFaces = Union[Flatten[{sampleCell}, 1], SameTest -> sameCenter];	
-		sampleEdges = Union[ Flatten[Map[getEdgesFromFace, sampleFaces], 1], SameTest -> sameCenter];
-		sampleVertices = Union[ Flatten[sampleFaces, 1], SameTest -> ApproxSamePoint];
-
-		sampleVertex = sampleVertices[[1]];
-		sampleEdgesFromVertex = Select[sampleEdges, Length[Intersection[#, {sampleVertex}, SameTest -> ApproxSamePoint]] > 0 &];
-		otherVertices = Map[Complement[#, {sampleVertex}, SameTest -> ApproxSamePoint][[1]]&, sampleEdgesFromVertex];
-		Print["Number of other vertices: " <> IntegerString[Length[otherVertices]]];
-
-		mirrors = Map[(sampleVertex - #)&, otherVertices[[Range[3] ]] ];
-
-		Print[Map[Length, {sampleEdgesFromVertex, otherVertices, mirrors}]];
-
-		countStart = -1;
-		For[i = 0, i < 10 && countStart != Length[cells], i++,
-			countStart = Length[cells];
-
-			Print["filter cells"];
-			(* If[i <= 2, cells = filterCells[cells, cellThreshold]]; *)
-			cells = filterCells[cells, cellThreshold];
-			
-			For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
-				newCells = Map[HReflect[#, mirrors[[mirrorIndex]]] &, cells, {3}];
-				cells = Union[cells, newCells, SameTest -> sameCellCenter];
-				Print[{i, mirrorIndex, Length[cells], countStart}];
-			];
-		];
-
-		Print["After shifting to cell first projection, generated " <> IntegerString[Length[cells]] <> " cells in total."];
+		cells = Map[#.setup &, cells, {3}];
 	];
 
-	cells = filterCells[cells, cellThreshold];
 	cells
 ];
 
@@ -489,8 +460,12 @@ before normalization
 after normalization
 {{0.9999999999999999, 1}, {3.427050983124836, 20}, {3.7360679774998076, 12}, {8.163118960624706, 60}, {10.59016994374946, 60}, {15.017220926873998, 60}, {19.75328890437294, 60}, {22.18033988749935, 60}, {26.916407864999275, 12}}
 Heights 1 ~ 10.59 are correct. However, 15.01 should be 120 but we got only 60. Why?
+Maybe there are multiple orbits of points contributing to 15.01.
+
+one step further:
+{{1., 1}, {3.427050983124836, 20}, {3.73606797749995, 12}, {8.163118960624706, 60}, {10.59016994374946, 60}, {15.017220926873998, 78}, {15.326237921248959, 20}, {19.75328890437294, 60}, {22.18033988749935, 69}, {26.607390870624275, 20}, {26.916407864999275, 24}, {26.916407865003485, 8}, {29.343458848128716, 20}, {33.77050983125963, 10}, {34.079526825624036, 40}, {40.93362879189307, 30}, {45.36067977499161, 2}, {45.36067977500584, 28}, {45.669696769366574, 40}, {52.52379873563172, 40}, {52.832815730006814, 20}, {57.259866713150416, 20}, {64.11396867936311, 20}, {71.2770876400315, 20}, {75.70413862320602, 10}, {82.86725758363059, 20}, {90.03037654435826, 10}, {94.76644452173858, 10}, {101.92956348260915, 20}, {108.78366544872978, 10}, {113.21071643185398, 20}, {113.51973342651414, 20}, {120.37383539247763, 20}, {124.80088637497512, 1}, {124.80088637560188, 9}, {143.8631922743485, 18}, {143.86319227507101, 2}, {162.3074641843449, 7}, {162.30746418597516, 3}, {197.38699100996374, 2}}
 
 
-
+Why is the projection not having 5-fold symmetry?
 
  *)
