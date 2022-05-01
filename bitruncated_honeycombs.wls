@@ -232,10 +232,29 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 	Print["flipping"];
 	flipMirror = normalizedCell1Center - {1, 0, 0, 0};
 	cell1Flip = Map[HReflect[#, flipMirror ]&, cell1, {2}];
+
+	twist = ArrayFlatten[{{1, 0}, {0, RotationMatrix[Pi/q, normalizedCell1Center[[Range[2,4]]] ]}}];
+	Print[twist//N];
+
+	cell1Flip = Map[#.twist &, cell1Flip, {2}];
+
 	Print[Length[cell1Flip]];
 	Print[getCellCenter[cell1Flip]];
 
+
+
 	cells = {cell1, cell1Flip};
+	Print["only two cells"];
+	Print["deduping faces"];
+	faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
+	Print["deduping edges"];
+	edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
+	Print["deduping vertices"];
+	vertices = Union[ Flatten[faces,1], SameTest -> ApproxSamePoint];
+	Print["Counts: cells, faces, edges, vertices"];
+	Print[Map[Length, {cells, faces, edges, vertices}]];
+
+
 
 	cellThresholdStep1 = If[cellFirst, cellThreshold, cellThreshold];
 	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThresholdStep1, gIndex++,
@@ -449,23 +468,22 @@ after normlization:
 {{3.4270509831248397, 20}, {10.590169943749803, 60}, {15.017220926873913, 120}, {22.180339887500928, 90}, {26.60739087061998, 120}}
 
 bitruncated 535:
-first attempt, no flipping. After normalization:
-{{3.427050983124836, 20}, {10.59016994374946, 60}, {15.017220926873998, 60}, {22.18033988749935, 60}}
-Incomplete.
-
-second attempt, with flipping. 300
-before normalization
-{{1.7022169326902392, 1}, {5.83358421266784, 20}, {6.35959817298193, 12}, {13.895399318340015, 60}, {18.026766598317607, 60}, {25.562567743675686, 60}, {33.624382849347896, 60}, {37.75575012932545, 60}, {45.817565234997694, 12}}
-
-after normalization
-{{0.9999999999999999, 1}, {3.427050983124836, 20}, {3.7360679774998076, 12}, {8.163118960624706, 60}, {10.59016994374946, 60}, {15.017220926873998, 60}, {19.75328890437294, 60}, {22.18033988749935, 60}, {26.916407864999275, 12}}
-Heights 1 ~ 10.59 are correct. However, 15.01 should be 120 but we got only 60. Why?
-Maybe there are multiple orbits of points contributing to 15.01.
-
-one step further:
-{{1., 1}, {3.427050983124836, 20}, {3.73606797749995, 12}, {8.163118960624706, 60}, {10.59016994374946, 60}, {15.017220926873998, 78}, {15.326237921248959, 20}, {19.75328890437294, 60}, {22.18033988749935, 69}, {26.607390870624275, 20}, {26.916407864999275, 24}, {26.916407865003485, 8}, {29.343458848128716, 20}, {33.77050983125963, 10}, {34.079526825624036, 40}, {40.93362879189307, 30}, {45.36067977499161, 2}, {45.36067977500584, 28}, {45.669696769366574, 40}, {52.52379873563172, 40}, {52.832815730006814, 20}, {57.259866713150416, 20}, {64.11396867936311, 20}, {71.2770876400315, 20}, {75.70413862320602, 10}, {82.86725758363059, 20}, {90.03037654435826, 10}, {94.76644452173858, 10}, {101.92956348260915, 20}, {108.78366544872978, 10}, {113.21071643185398, 20}, {113.51973342651414, 20}, {120.37383539247763, 20}, {124.80088637497512, 1}, {124.80088637560188, 9}, {143.8631922743485, 18}, {143.86319227507101, 2}, {162.3074641843449, 7}, {162.30746418597516, 3}, {197.38699100996374, 2}}
-
-
 Why is the projection not having 5-fold symmetry?
+
+Fixed flipped cell. After flipping, we need to twist. Then. with 300 cells:
+without normalization:
+{{1.7022169326902425, 1}, {5.83358421266784, 20}, {6.35959817298194, 12}, {13.895399318340015, 60}, {18.026766598317607, 60}, {25.562567743675686, 60}, {33.62438284934785, 60}, {37.75575012932545, 60}, {45.81756523499766, 12}}
+
+with normalization:
+{{1., 1}, {3.427050983124836, 20}, {3.736067977499712, 12}, {8.163118960624788, 60}, {10.59016994374946, 60}, {15.017220926873998, 60}, {19.753288904380668, 60}, {22.18033988749935, 60}, {26.916407864995026, 10}, {26.916407865003478, 2}}
+Filter from 345 cells down to 153 cells. (1+20+12+60+60)
+
+Heights 1 ~ 10.59 are correct. However, 15.01 should be 120 but we got only 60. Why?
+Maybe there are multiple orbits of points contributing to 15.01. The symmetry operations we've done so far only reaches one orbit.
+
+When we set the cell threshold to 500, applying one more mirror, we have:
+{{1., 1}, {3.427050983124836, 20}, {3.736067977499712, 12}, {8.163118960624706, 60}, {10.59016994374946, 60}, {15.017220926873998, 78}, {15.326237921249557, 20}, {19.753288904380668, 60}, {22.18033988749935, 69}, {26.607390870624275, 20}, {26.916407864995026, 26}, {26.916407865003478, 6}, {29.343458848128716, 20}, ...
+
+
 
  *)
