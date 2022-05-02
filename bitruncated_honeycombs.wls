@@ -199,7 +199,7 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 	p2d = Map[(# - hexagonCenter) . Transpose[proj] &, hexagon1];
 	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
 	hexagon1 = hexagon1[[Ordering[args]]];
-	Print["Each hexagon contains " <> IntegerString[Length[hexagon1]] <> " vertices."];
+	Print["Each type 1 face contains " <> IntegerString[Length[hexagon1]] <> " vertices. Expected value: " <> IntegerString[2 * q]];
 
 	pentagon1 = {vertex1} // N;
 	finished = False;
@@ -210,7 +210,7 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 	  ]
 	];
 
-	Print["Each pentagon contains " <> IntegerString[Length[pentagon1]] <> " vertices."];
+	Print["Each type 2 face contains " <> IntegerString[Length[pentagon1]] <> " vertices. Expected value: " <> IntegerString[p]];
 
 	cell1 = {hexagon1, pentagon1};
 	countStart = -1;
@@ -240,8 +240,6 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	Print[Length[cell1Flip]];
 	Print[getCellCenter[cell1Flip]];
-
-
 
 	cells = {cell1, cell1Flip};
 	Print["only two cells"];
@@ -301,14 +299,8 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 		sampleCellCenter = HNormalize[getCellCenter[sampleCell], 1];
 		Print[sampleCellCenter];
 
-		pentagons = Select[sampleCell, Length[#]==5&];
-
-		zVector = If[p == 3 && q == 5 && r == 3,
-			(* for 353, orient a vertex along the z axis *)
-			HNormalize[sampleCell[[1]][[1]], 1],
-			(* for 535, 435, 534, orient a face center along the z axis *)
-			HNormalize[Mean[pentagons[[1]]], 1]
-		];
+		pentagons = Select[sampleCell, Mod[Length[#],5]==0&];
+		zVector = HNormalize[Mean[pentagons[[1]]], 1];
 
 		Print[zVector];
 		zVectorToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{zVector[[Range[2,4]]], {0, 0, 1}}]}}];
