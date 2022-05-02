@@ -172,9 +172,9 @@ getNonlinearFactor[linear_, layer_] := Module[
 	{layerOffset, linearOffset, returnValue},
 
 	layerOffset = If[layer > 2, layer - 2, 0];
-	linearOffset = linear + layerOffset*getNonlinearFactor;
+	linearOffset = linear + layerOffset*delayFactor;
 	returnValue = linearOffset^2/maxExplosionFactor;
-	If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor];
+	(* If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor]; *)
 	If[linearOffset < 0, returnValue = 0];
 	returnValue
 ];
