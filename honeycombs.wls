@@ -326,9 +326,14 @@ vertices = data["vertices"];
 Print["Counts: cells, faces, edges, vertices"];
 Print[Map[Length, {cells, faces, edges, vertices}]];
 
-Print["unique cells"];
-uniqueCells = Union[cells, SameTest -> sameCellCenter];
-Print[Map[Length, {cells, uniqueCells}]];
+normalizedCellCenters = Map[HNormalize[getCellCenter[#],1]&, cells];
+normalizedCellCenterHeights = Map[#[[1]]&, normalizedCellCenters];
+normalizedHeightTally = Tally[normalizedCellCenterHeights, ApproxSamePoint]//Sort;
+Print["normalizedHeightTally"];
+Print[normalizedHeightTally];
+(* centersToPrint = Sort[Select[normalizedCellCenters, (#[[1]] > 19) &], #1[[2]] + 0.01 #1[[3]] + 0.0001 #1[[4]]< #2[[2]] + 0.01 #2[[3]] + 0.0001 #2[[4]]& ];
+Map[Print, centersToPrint];
+Exit[]; *)
 
 For[modelIndex = 1, modelIndex <= Length[models], modelIndex++,
 	model = models[[modelIndex]];
