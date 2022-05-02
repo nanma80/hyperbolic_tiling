@@ -4,7 +4,7 @@ maxExplosionFactor = 10.0;
 frameCount = 150;
 
 maxExplosionFactor = 8.0;
-frameCount = 4;
+frameCount = 6;
 
 cellThreshold = 100;
 (* cellThreshold = 300; *)
@@ -193,16 +193,6 @@ If[FileExistsQ[dataFileName],
 
 cells = data["cells"];
 Print[cells//Length];
-
-(* 
-353:
-{1, 20, 60, 12, 120}
-1, 21, 81, 93, 213
-
-535:
-{1, 12, 60, 120}
-1, 13, 73, 193
- *)
 
 newCellThreshold = cellThreshold;
 layers = 1;
