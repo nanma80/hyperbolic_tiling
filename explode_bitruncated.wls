@@ -32,7 +32,7 @@ imageFolder = "images";
 epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
-rangeFactor = 1.25;
+rangeFactor = 1.75;
 (* disconnected faces, connected faces *)
 colors = {Darker[Gray, 0.9], Lighter[Gray, 0.99]};
 
@@ -223,7 +223,10 @@ delayFactor = If[layers >= 4, 2, 3];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
+	Print[DateString["ISODateTime"] <> " Generating frame for:"];
+	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
+	If[frameIndex <= 6, Return[]];
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -288,12 +291,12 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			getOpacityByExplosion[explosionFactor],
 			1
 		];
-		Print["{opacity, Length[cells]}"];
+		Print["Face opacity and count:"];
 		Print[{opacity, Length[cells]}];
 
 		For[cid = 1, cid <= Length[cells], cid++,
 			If[Mod[cid, 10] == 1,
-				Print["Generating surface for cell id " <> IntegerString[cid]];
+				Print[DateString["ISODateTime"] <> " Generating surface for cell id " <> IntegerString[cid]];
 			];
 			sampleCell = cells[[cid]];
 			isCenterCell = Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon;
@@ -331,7 +334,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		];
 	];
 
-	Print["Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
+	Print[DateString["ISODateTime"] <> " Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
 	Print["Range of plot: " <> ToString[range]];
 	thickness = range * 0.008;
@@ -345,7 +348,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			getOpacityByExplosion[explosionFactor],
 			1
 		];
-		Print["{opacity, Length[edges]}"];
+		Print["Edge opacity and count:"];
 		Print[{opacity, Length[edges]}];
 		AppendTo[graphElements,
 			{
@@ -361,7 +364,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		];
 	];
 
-	Print["Generated graph elements"];
+	Print[DateString["ISODateTime"] <> " Generated graph elements"];
 
 	graph = Graphics3D[
 		graphElements,
@@ -374,19 +377,19 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		graph = Apply[Show, Join[{graph}, surfaces]];
 	];
 
-	Print["Defined graph"];
+	Print[DateString["ISODateTime"] <> " Defined graph"];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
 	If[exportToPov,
 	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-	  Print["Exporting to POV ray"];
+	  Print[DateString["ISODateTime"] <> " Exporting to POV ray"];
 	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
 	  Run[cropCommand];
 	  ,
 	  Export[outputFileName, graph];
 	];
-	Print["Saved an image to " <> outputFileName];
+	Print[DateString["ISODateTime"] <> " Saved an image to " <> outputFileName];
 ];
 
 exportAnimation[] := Module[
