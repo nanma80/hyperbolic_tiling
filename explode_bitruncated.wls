@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
@@ -32,14 +32,14 @@ imageFolder = "images";
 epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
-rangeFactor = 1.75;
+rangeFactor = 1.65;
 (* disconnected faces, connected faces *)
 colors = {Darker[Gray, 0.9], Lighter[Gray, 0.99]};
 
 outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
-splitEdgeParts = 15;
+splitEdgeParts = 8;
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
@@ -226,7 +226,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	If[frameIndex <= 6, Return[]];
+	(* If[frameIndex <= 6, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -315,10 +315,10 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-					(* to be changed *)
 					surface = ParametricPlot3D[
 						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
 						PlotStyle -> {color, Opacity[cellOpacity]}, Mesh -> None
+						, PlotPoints -> 8
 					];
 					AppendTo[surfaces, surface];
 				];
@@ -468,3 +468,7 @@ exportAnimation[];
 (* 
 for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
  *)
+
+(* 
+PlotPoints -> 5, for 535, 50, last frame took about 1 hour.
+*)
