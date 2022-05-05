@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-(* maxExplosionFactor = 8.0;
+maxExplosionFactor = 8.0;
 frameCount = 6;
- *)
+
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
@@ -226,7 +226,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	(* If[frameIndex <= 6, Return[]]; *)
+	If[frameIndex <= 6, Return[]];
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -284,6 +284,10 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	surfaces = {};
 	cellsCenters = Map[getCellCenter, Join[cellsActive, cellsInactive]];
+	triangleAreas = {};
+	(* from previous calculation *)
+	meanArea = 0.007865788269109409;
+	allPlotPoints = {};
 
 	For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
 		cells = cellsActiveAndInactive[[activeFlag]];
@@ -315,10 +319,18 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
 					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
+					triangleCorners = {poincarePoints[0,0], poincarePoints[0,1], poincarePoints[1,0]};
+					area = Area[Triangle[triangleCorners]];
+					AppendTo[triangleAreas, area];
+					(* plotPoints = If[area < meanArea, 3, 8]; *)
+					plotPoints = 8;
+					AppendTo[allPlotPoints, plotPoints];
+
 					surface = ParametricPlot3D[
 						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
 						PlotStyle -> {color, Opacity[cellOpacity]}, Mesh -> None
-						, PlotPoints -> 8
+						, PlotPoints -> plotPoints
+						(* , MaxRecursion -> 0 *)
 					];
 					AppendTo[surfaces, surface];
 				];
@@ -333,6 +345,13 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			];
 		];
 	];
+
+	Print["area stats"];
+	Print[{Length[triangleAreas],Mean[triangleAreas], Median[triangleAreas]}];
+	Print["meanArea ="];
+	Print[Mean[triangleAreas]];
+	Print[Table[Quantile[triangleAreas, k], {k, 0, 1, 0.1}]];
+	Print[Sort[Tally[allPlotPoints]]];
 
 	Print[DateString["ISODateTime"] <> " Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
@@ -470,5 +489,32 @@ for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
  *)
 
 (* 
-PlotPoints -> 5, for 535, 50, last frame took about 1 hour.
+PlotPoints -> 5, for 535, 50, 
+last frame took about 1 hour.
+
+535 10, PlotPoints -> 3
+last frame: 2 min
+not looking good
+
+535 10, PlotPoints -> 8
+last frame: 5 min
+
+535 10, MaxRecursion -> 1
+last frame: 14 min
+
+535 10, MaxRecursion -> 0
+last frame: 9 min
+
+535 10, default
+last frame: 9 min
+
+
+535 10, area stats:
+
+{2436, 0.007865788269109409, 0.003914305013057897}
+{0.0011045462053664182, 0.0015475698165937502, 0.0022258688217539537, 0.002602268120372627, 0.0032355032692118007, 0.003914305013057896, 0.005874011961751207, 0.007917389281519666, 0.014033506404016778, 0.01832494070468431, 0.036649881409370456}
+
+535 10, dynamic plotpoints between 3 and 8
+still 2 min. Not looking very good. Close to the look of 3.
+
 *)
