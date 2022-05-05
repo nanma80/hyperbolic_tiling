@@ -9,6 +9,8 @@ frameCount = 6;
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
+frameIndexMod = 0;
+(* frameIndexMod = 1; *)
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -226,7 +228,8 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	If[frameIndex <= 6, Return[]];
+	If[frameIndex <= 2, Return[]];
+	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -516,5 +519,17 @@ last frame: 9 min
 
 535 10, dynamic plotpoints between 3 and 8
 still 2 min. Not looking very good. Close to the look of 3.
+
+even/odd experiment
+535 10, 6 frames. skip #1. 
+start time: 9:08
+end time: 9:33. 25 min
+
+no even/odd, all frames:
+535 10, 6 frames, skp #1
+start time: 9:47
+end time: 10:29. 42 min
+
+40% reduction of execution time by doing even/odd
 
 *)
