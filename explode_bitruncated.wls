@@ -3,14 +3,14 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
 frameIndexMod = 0;
-(* frameIndexMod = 1; *)
+frameIndexMod = 1;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -228,7 +228,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	If[frameIndex <= 2, Return[]];
+	If[frameIndex <= 175, Return[]];
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
