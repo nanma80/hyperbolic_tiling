@@ -30,7 +30,7 @@ imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 0.8;
 
-outputFolder = FileNameJoin[{imageFolder, "honeycombs", "bitruncated_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> ToString[r, InputForm]}];
+outputFolder = FileNameJoin[{imageFolder, "honeycombs", shape }];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 8;
@@ -140,12 +140,8 @@ filterCells[cells_, cellThreshold_] := Module[
 	filteredCells
 ];
 
-getAlternatedSubsets[points_] := Module[
-	{
-		subsets
-	},
-	subsets = {{}, {}};
-
+getMinInnerProduct[points_] := Module[
+	{minInner, i, j, ijInner},
   minInner = 10^10;
   For[i = 1, i <= Length[points]-1, i++, 
       For[j = i + 1, j <= Length[points], j++, 
@@ -155,7 +151,18 @@ getAlternatedSubsets[points_] := Module[
           ]
       ];
   ];
-  Print[minInner];
+
+  minInner
+];
+
+
+getAlternatedSubsets[points_] := Module[
+	{
+		subsets, minInner, allIndices, remainingIndices, index, neighborIndices
+	},
+	subsets = {{}, {}};
+
+  minInner = getMinInnerProduct[points];
 
   If[Length[points] >= 1,
   	AppendTo[subsets[[1]], 1]
@@ -184,16 +191,25 @@ getAlternatedSubsets[points_] := Module[
   		Print[subsets];
   	];
 
-(*   	If[Length[Intersection[subsets[[1]], neighborIndices]] == 0 && Length[Intersection[subsets[[2]], neighborIndices]] == 0,
-  		Print["Neighbor indices not intersecting with either subsets. Wait..."];
-  		Print[neighborIndices];
-  		Print[subsets];
-  	]; *)
-
   	remainingIndices = Complement[allIndices, subsets[[1]], subsets[[2]]];
   ];
 
 	subsets
+];
+
+getEdges[vertices_] := Module[
+    {edges, inner, i, j},
+    edges = {};
+    minInner = getMinInnerProduct[vertices];
+    For[i = 1, i <= Length[vertices]-1, i++, 
+        For[j = i + 1, j <= Length[vertices], j++, 
+            If[
+                Abs[ HInner[vertices[[i]], vertices[[j]]] - minInner ] < 10 * epsilon,
+                AppendTo[edges, {i, j}] 
+            ];
+        ];
+    ];
+    edges
 ];
 
 getCells[] := Module[
@@ -233,199 +249,58 @@ getCells[] := Module[
 	mainSubsetCells = baseCells[[mainSubset]];
 	otherSubsetCells = baseCells[[otherSubset]];
 
-	cell1 = centerCell;
-	center1 = getCellCenter[cell1];
-	faces = cell1;
-	faceCenters = Map[Mean, faces];
-	newPoints = Map[centralReflect[center1, #]&, faceCenters];
-	Print[HNorm[center1]];
-	Print[HNorm/@newPoints];
+	cells = {};
+	For[cid = 1, cid <=Length[mainSubsetCells], cid++,
+		(* Print["cid: " <> IntegerString[cid]]; *)
+		cell1 = mainSubsetCells[[cid]];
+		center1 = getCellCenter[cell1];
+		faces = cell1;
+		faceCenters = Map[Mean, faces];
+		newVertices = Map[centralReflect[center1, #]&, faceCenters];
 
-(* 	Print[Intersection[
-		{center1}, Map[getCellCenter, mainSubsetCells], SameTest -> ApproxSamePoint
-	]];
+		edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
+		(* Print[Length[edges]]; *)
+		edgeCenterNorm = HNorm[Mean[edges[[1]]]];
+		(* Map[Print[HNormalize[Mean[#], 1][[1]]]&, edges]; *)
+		(* Print[edges[[1]]]; *)
+		(* Map[Print[Mean[#][[1]]]&, edges]; *)
 
-	Print[Intersection[
-		{center1}, Map[getCellCenter, otherSubsetCells], SameTest -> ApproxSamePoint
-	]];
-
-	Print[Intersection[
-		newPoints, Map[getCellCenter, mainSubsetCells], SameTest -> ApproxSamePoint
-	]];
-
-	Print[Intersection[
-		newPoints, Map[getCellCenter, otherSubsetCells], SameTest -> ApproxSamePoint
-	]//Length];
- *)
-
-	Exit[];
-
-
-	piOverHpq = ArcCos[Sqrt[Cos[Pi/p]^2 + Cos[Pi/q]^2]]//Simplify;
-	piOverHqr = ArcCos[Sqrt[Cos[Pi/q]^2 + Cos[Pi/r]^2]]//Simplify;
-
-	(* chi: p0 and p2 *)
-	coshchi = Cos[Pi/p] Cos[Pi/q] Cos[Pi/r]/Sin[piOverHpq]/Sin[piOverHqr]//Simplify;
-	inner02 = coshchi;
-
-	(* psi: p1 and p2 *)
-	coshpsi = Sin[Pi/p] Cos[Pi/r]/Sin[piOverHpq]//Simplify;
-	inner12 = coshpsi;
-
-	(* phi: p0 and p1, 2phi: from p0 to p1 to another p0. edge length *)
-	coshphi = Cos[Pi/p] Sin[Pi/r]/Sin[piOverHqr]//Simplify;
-	inner01 = coshphi;
-	cosh2phi = 2 coshphi^2 - 1//Simplify;
-	sinh2phi = Sqrt[cosh2phi^2 - 1]//Simplify;
-
-	normalizedVertexFigureCoordinates = getVertexFigureCoordinates[p, q, r];
-
-	(* vertex first *)
-	vertex1 = {1, 0, 0, 0};
-
-	seedVertices = Map[{cosh2phi, sinh2phi #[[1]], sinh2phi #[[2]], sinh2phi #[[3]]}&, normalizedVertexFigureCoordinates];
-	(* Print["seedVertices"]; *)
-	mirrors = {
-		seedVertices[[1]] - vertex1,
-		seedVertices[[1]] - seedVertices[[2]],
-		seedVertices[[2]] - seedVertices[[3]],
-		seedVertices[[3]] - seedVertices[[4]]
-	};
-
-	(* normalized mirrors *)
-	normalizedMirrors = Map[Re[HNormalize[#, I]] &, mirrors] // FullSimplify;
-	solutions = Solve[HInner[{w, x, y, 0}, normalizedMirrors[[1]]] == 0 && 
-		   HNorm[{w, x, y, 0}] == 1 && HInner[{w, x, y, 0}, normalizedMirrors[[2]]] == HInner[{w, x, y, 0}, normalizedMirrors[[3]]], {w, x, y}];
-	Print[solutions];
-	vertex1 = {w, x, y, 0} /. solutions[[2]] // FullSimplify;
-	Print[vertex1//N];
-
-	hexagon1 = {vertex1} // N;
-	finished = False;
-	For[i = 0, i < 20 && finished == False, i++,
-	  beforeCount = Length[hexagon1];
-	  newVertices1 = Map[HReflect[#, mirrors[[2]]] &, hexagon1];
-	  newVertices2 = Map[HReflect[#, mirrors[[3]]] &, hexagon1];
-	  hexagon1 = Union[hexagon1, newVertices1, newVertices2, SameTest -> ApproxSamePoint];
-	  Print[{i, Length[hexagon1]}];
-	  If[beforeCount == Length[hexagon1], finished = True]
-	];
-
-	hexagonCenter = Mean[hexagon1];
-	proj = Orthogonalize[{{1, 2, 3, 4}, {1.23, 4.34, 2, 0}}];
-	p2d = Map[(# - hexagonCenter) . Transpose[proj] &, hexagon1];
-	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-	hexagon1 = hexagon1[[Ordering[args]]];
-	Print["Each type 1 face contains " <> IntegerString[Length[hexagon1]] <> " vertices. Expected value: " <> IntegerString[2 * q]];
-
-	pentagon1 = {vertex1} // N;
-	finished = False;
-	For[i = 0, i < 20 && finished == False, i++, 
-	  newVertex = FullSimplify[HDoubleReflect[pentagon1[[-1]], mirrors[[1]], mirrors[[2]]]];
-	  If[!(ApproxSamePoint[newVertex, pentagon1[[1]]]), 
-	  	AppendTo[pentagon1, newVertex], finished = True
-	  ]
-	];
-
-	Print["Each type 2 face contains " <> IntegerString[Length[pentagon1]] <> " vertices. Expected value: " <> IntegerString[p]];
-
-	cell1 = {hexagon1, pentagon1};
-	countStart = -1;
-	For[i=0, i < 100 && countStart != Length[cell1], i++,
-		countStart = Length[cell1];
+		newVertexPairIndices = getEdges[newVertices];
+		newVerticesPairs = Map[newVertices[[#]]&, newVertexPairIndices];
+		(* Print[Length[newVerticesPairs]]; *)
+		newVerticesPairCenterNorm = HNorm[Mean[newVerticesPairs[[1]]]];
 		
-		For[mirrorIndex = 3, mirrorIndex >= 1, mirrorIndex--,
-			cell1 = Union[cell1, Map[HReflect[#, mirrors[[mirrorIndex]] ]&, cell1, {2}], SameTest -> sameCenter];
+		(* Map[Print[HNormalize[Mean[#], 1][[1]]]&, newVerticesPairs]; *)
+
+		(* Print[newVerticesPairs[[1]]]; *)
+
+		newVerticesPairs = newVerticesPairs / newVerticesPairCenterNorm * edgeCenterNorm;
+		(* Map[Print[Mean[#][[1]]]&, newVerticesPairs]; *)
+
+		newFaces = {};
+		For[eid = 1, eid <= Length[edges], eid++,
+			edge = edges[[eid]];
+			newVertexPairMatched = Select[newVerticesPairs, ApproxSamePointLoose[Mean[#], Mean[edge]]&];
+			(* Print[Length[newVertexPairMatched]]; *)
+			newVertexPair = newVertexPairMatched[[1]];		
+			newFace = {edge[[1]], newVertexPair[[1]], edge[[2]], newVertexPair[[2]]};
+			AppendTo[newFaces, newFace];
 		];
+
+		AppendTo[cells, newFaces];
 	];
-	Print["Each cell contains " <> IntegerString[Length[cell1]] <> " faces."];
-	
-	Print["cell1 center"];
-	cell1Center = getCellCenter[cell1];
-	normalizedCell1Center = HNormalize[cell1Center,1];
-	Print[cell1Center];
-	Print[normalizedCell1Center];
 
-	Print["flipping"];
-	flipMirror = normalizedCell1Center - {1, 0, 0, 0};
-	cell1Flip = Map[HReflect[#, flipMirror ]&, cell1, {2}];
+	Print["generated cells"];
+	Print[Length[cells]];
 
-	twist = ArrayFlatten[{{1, 0}, {0, RotationMatrix[Pi/q, normalizedCell1Center[[Range[2,4]]] ]}}];
-	Print[twist//N];
-
-	cell1Flip = Map[#.twist &, cell1Flip, {2}];
-
-	Print[Length[cell1Flip]];
-	Print[getCellCenter[cell1Flip]];
-
-	cells = {cell1, cell1Flip};
-	Print["only two cells"];
-	Print["deduping faces"];
+(* 	Print["deduping faces"];
 	faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
 	Print["deduping edges"];
 	edges = Union[ Flatten[Map[getEdgesFromFace, faces], 1], SameTest -> sameCenter];
 	Print["deduping vertices"];
 	vertices = Union[ Flatten[faces,1], SameTest -> ApproxSamePoint];
 	Print["Counts: cells, faces, edges, vertices"];
-	Print[Map[Length, {cells, faces, edges, vertices}]];
-
-
-
-	cellThresholdStep1 = If[cellFirst, cellThreshold, cellThreshold];
-	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThresholdStep1, gIndex++,
-		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> sameCellCenter];
-
-		countStart = -1;
-		For[i = 0, i < 10 && countStart != Length[cells], i++,
-			countStart = Length[cells];
-			
-			For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
-				cells = Union[cells, Map[HReflect[#, mirrors[[mirrorIndex]] ]&, cells, {3}], SameTest -> sameCellCenter];
-			];
-
-			Print["gIndex = "  <> IntegerString[gIndex] <> "; i = "  <> IntegerString[i] <> ". Generated " <> IntegerString[Length[cells]] <> " cells so far"];
-			normalizedCellCenters = Map[HNormalize[getCellCenter[#],1]&, cells];
-			normalizedCellCenterHeights = Map[#[[1]]&, normalizedCellCenters];
-			normalizedHeightTally = Tally[normalizedCellCenterHeights, ApproxSamePoint]//Sort;
-			Print["normalizedHeightTally"];
-			Print[normalizedHeightTally];
-		];
-	];
-
-	Print["Generated " <> IntegerString[Length[cells]] <> " cells in total."];
-	cellCenterHeights = Map[getCellHeight, cells];
-	heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
-	tallyCounts = Map[#[[2]]&, heightTally];
-	Print["heightTally without normalization"];
-	Print[heightTally];
-
-	normalizedCellCenters = Map[HNormalize[getCellCenter[#],1]&, cells];
-	normalizedCellCenterHeights = Map[#[[1]]&, normalizedCellCenters];
-	normalizedHeightTally = Tally[normalizedCellCenterHeights, ApproxSamePoint]//Sort;
-	Print["normalizedHeightTally"];
-	Print[normalizedHeightTally];
-
-	If[cellFirst,
-		cells = filterCells[cells, cellThreshold];
-		cellCenterHeights = Map[getCellHeight, cells];
-		minHeight = Min[cellCenterHeights];
-		Print["cellFirst"];
-		Print[minHeight];
-		sampleCell = Select[cells, getCellHeight[#] < minHeight + epsilon & ][[1]];
-
-		sampleCellCenter = HNormalize[getCellCenter[sampleCell], 1];
-		Print[sampleCellCenter];
-
-		pentagons = Select[sampleCell, Mod[Length[#],5]==0&];
-		zVector = HNormalize[Mean[pentagons[[1]]], 1];
-
-		Print[zVector];
-		zVectorToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{zVector[[Range[2,4]]], {0, 0, 1}}]}}];
-		setup = Transpose[zVectorToZaxis];
-		Map[Print, setup];
-
-		cells = Map[#.setup &, cells, {3}];
-	];
+	Print[Map[Length, {cells, faces, edges, vertices}]]; *)
 
 	cells
 ];
@@ -447,8 +322,6 @@ GetDataThroughCache[p, q, r] := Module[
 
 		Print[heightTally];
 		Print[tallyCounts];
-
-		Exit[];
 
 		Print["deduping faces"];
 		faces = Union[ Flatten[cells, 1], SameTest -> sameCenter];
@@ -476,8 +349,6 @@ edges = data["edges"];
 vertices = data["vertices"];
 Print["Counts: cells, faces, edges, vertices"];
 Print[Map[Length, {cells, faces, edges, vertices}]];
-
-Exit[];
 
 Print["unique cells"];
 uniqueCells = Union[cells, SameTest -> sameCellCenter];
