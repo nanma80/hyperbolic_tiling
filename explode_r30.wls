@@ -3,8 +3,8 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
-frameCount = 6;
+(* maxExplosionFactor = 8.0;
+frameCount = 6; *)
 
 cellThreshold = 100;
 (* cellThreshold = 300; *)
@@ -32,7 +32,7 @@ rangeFactor = 1.65;
 (* disconnected faces, connected faces *)
 colors = {Green, Red, Blue, Yellow};
 (* faceColor = Green; *)
-edgeColor = Gray;
+edgeColor = Lighter[Gray, 0.9];
 
 outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
@@ -223,7 +223,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	(* If[frameIndex <= 6, Return[]]; *)
+	If[frameIndex <= 175, Return[]];
 	(* If[frameIndex != 4, Return[]]; *)
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
