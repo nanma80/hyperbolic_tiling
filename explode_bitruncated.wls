@@ -10,7 +10,7 @@ cellThreshold = 100;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
 frameIndexMod = 0;
-frameIndexMod = 1;
+(* frameIndexMod = 1; *)
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -202,6 +202,11 @@ layers = 1;
 If[{p,q,r} == {3,5,3} && cellThreshold == 100,
 	(* 1 + 12 + 20 + 30 + 60 *)
 	newCellThreshold = 123;
+];
+
+If[{p,q,r} == {3,5,3} && cellThreshold == 50,
+	(* 1 + 12 + 20 + 30 *)
+	newCellThreshold = 63;
 ];
 
 If[{p,q,r} == {5,3,5} && cellThreshold == 100,
