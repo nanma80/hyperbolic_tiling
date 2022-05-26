@@ -193,7 +193,7 @@ newCellThreshold = cellThreshold;
 layers = 1;
 delayFactor = If[{p,q,r} == {6,3,3}, 2, 4];
 
-If[{p,q,r} == {6,3,3} && cellThreshold == 10,
+If[{p,q,r} == {6,3,3} && cellThreshold == 10 && False,
 	(* 1 + 20 + 60 + 12 *)
 	newCellThreshold = 4;
 	layers = 1;
@@ -408,9 +408,9 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-exportAnimation[];
+(* exportAnimation[]; *)
 
-(* exportFrame[0.0, 1, "test", False]; *)
+exportFrame[0.0, 11, "test", False];
 (* exportFrame[0.5, 2, "test", False]; *)
 (* exportFrame[1.0, 3, "test", False]; *)
 (* exportFrame[4.0, 4, "test", False]; *)
