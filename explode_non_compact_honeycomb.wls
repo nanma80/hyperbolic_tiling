@@ -118,6 +118,8 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, he
 		height = getCellHeight[cell];
 		layer = heightsMap[Round[height, epsilon]];
 		nonlinearFactor = getNonlinearFactor[explosionFactor, layer];
+		Print["{acId, nonlinearFactor}"];
+		Print[{acId, nonlinearFactor, layer}];
 		activeCells[[acId]] = explodedCell[cell, nonlinearFactor];
 	];
 	(* activeCells = Map[explodedCell[#, explosionFactor]&, activeCells]; *)
@@ -157,7 +159,7 @@ filterCells[cells_, cellThreshold_] := Module[
 getNonlinearFactor[linear_, layer_] := Module[
 	{layerOffset, linearOffset, returnValue},
 
-	layerOffset = If[layer > 2, layer - 2, 0];
+	layerOffset = If[layer > 1, layer - 1, 0];
 	linearOffset = linear + layerOffset*delayFactor;
 	returnValue = linearOffset^2/maxExplosionFactor;
 	(* If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor]; *)
@@ -191,7 +193,6 @@ Print[cells//Length];
 
 newCellThreshold = cellThreshold;
 layers = 1;
-delayFactor = If[{p,q,r} == {6,3,3}, 2, 4];
 
 If[{p,q,r} == {6,3,3} && cellThreshold == 10 && False,
 	(* 1 + 20 + 60 + 12 *)
@@ -201,6 +202,17 @@ If[{p,q,r} == {6,3,3} && cellThreshold == 10 && False,
 
 (* for testing, 1 + 20 *)
 (* newCellThreshold = 21; *)
+
+cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
+heightTally = Tally[cellCenterHeights, ApproxSamePoint]//Sort;
+tallyCounts = Map[#[[2]]&, heightTally];
+Print["heights"];
+Print[heightTally];
+Print[tallyCounts];
+layers = Length[tallyCounts];
+Print["Setting layers to: " <> IntegerString[layers]];
+
+delayFactor = If[layers >= 4, 2, 3];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
@@ -235,8 +247,8 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	];
 	Print[heightsMap];
 
-	colorMap[c_] := Red;
-	range = 0.6;
+	colorMap[c_] := Green;
+	range = 1.0;
 	cellsCenterHeights = Map[getCellHeight, cells];
 	cellsCenters = Map[Round[getCellCenter[#], epsilon]&, cells];
 	colorsByCells = Map[colorMap, cellsCenters];
@@ -410,7 +422,14 @@ exportAnimation[] := Module[
 
 (* exportAnimation[]; *)
 
-exportFrame[0.0, 11, "test", False];
+(* exportFrame[0.0, 11, "test", False]; *)
+(* exportFrame[-2.0, 12, "test", False]; *)
+
+exportFrame[0.3, 21, "test", False];
+exportFrame[0.0, 22, "test", False];
+exportFrame[-2.0, 23, "test", False];
+
+
 (* exportFrame[0.5, 2, "test", False]; *)
 (* exportFrame[1.0, 3, "test", False]; *)
 (* exportFrame[4.0, 4, "test", False]; *)
