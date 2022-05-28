@@ -20,8 +20,7 @@ If[Length[argv] >= 4,
 	cellThreshold = ToExpression[argv[[4]]]
 ];
 
-filterFaceThreshold = 20;
-(* cellFirst = True; *)
+filterFaceThreshold = If[cellThreshold <= 10, 5, 20];
 cellFirst = False;
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> ", "<> IntegerString[r] <> "}"];
@@ -234,67 +233,13 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	Print["Generated " <> IntegerString[Length[cells]] <> " cells in total."];
 
-	If[cellFirst,
-		cells = filterCells[cells, cellThreshold];
-		cellCenterHeights = Map[getCellHeight, cells];
-		minHeight = Min[cellCenterHeights];
-		Print["cellFirst"];
-		Print[minHeight];
-		sampleCell = Select[cells, getCellHeight[#] < minHeight + epsilon & ][[1]];
-
-		sampleCellCenter = HNormalize[getCellCenter[sampleCell], 1];
-		Print[sampleCellCenter];
-
-		cellCenterToX = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{sampleCellCenter[[{2,3,4}]], {1, 0, 0}}]}}];
-		transformedCenter = sampleCellCenter.Transpose[cellCenterToX];
-		setup = Transpose[cellCenterToX].Boost[-ArcCosh[transformedCenter[[1]]]];
-
-		zVector = If[p == 3 && q == 5 && r == 3,
-			(* for 353, orient a vertex along the z axis *)
-			HNormalize[sampleCell[[1]][[1]].setup, 1],
-			(* for 535, 435, 534, orient a face center along the z axis *)
-			HNormalize[Mean[sampleCell[[1]]].setup, 1]
-		];
-
-		zVectorToZaxis = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{zVector[[Range[2,4]]], {0, 0, 1}}]}}];
-		setup = setup.Transpose[zVectorToZaxis];
-
-		cells = Map[#.setup &, cells];
-		cells = filterCells[cells, cellThreshold];
-		sampleCell = sampleCell.setup;
-
-		sampleFaces = Union[Flatten[{sampleCell}, 1], SameTest -> sameCenter];	
-		sampleEdges = Union[ Flatten[Map[getEdgesFromFace, sampleFaces], 1], SameTest -> sameCenter];
-		sampleVertices = Union[ Flatten[sampleFaces, 1], SameTest -> ApproxSamePoint];
-
-		sampleVertex = sampleVertices[[1]];
-		sampleEdgesFromVertex = Select[sampleEdges, Length[Intersection[#, {sampleVertex}, SameTest -> ApproxSamePoint]] > 0 &];
-		otherVertices = Map[Complement[#, {sampleVertex}, SameTest -> ApproxSamePoint][[1]]&, sampleEdgesFromVertex];
-		Print["Number of other vertices: " <> IntegerString[Length[otherVertices]]];
-
-		mirrors = Map[(sampleVertex - #)&, otherVertices[[Range[3] ]] ];
-
-		Print[Map[Length, {sampleEdgesFromVertex, otherVertices, mirrors}]];
-
-		countStart = -1;
-		For[i = 0, i < 10 && countStart != Length[cells], i++,
-			countStart = Length[cells];
-
-			Print["filter cells"];
-			(* If[i <= 2, cells = filterCells[cells, cellThreshold]]; *)
-			cells = filterCells[cells, cellThreshold];
-			
-			For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
-				newCells = Map[HReflect[#, mirrors[[mirrorIndex]]] &, cells, {3}];
-				cells = Union[cells, newCells, SameTest -> sameCellCenter];
-				Print[{i, mirrorIndex, Length[cells], countStart}];
-			];
-		];
-
-		Print["After shifting to cell first projection, generated " <> IntegerString[Length[cells]] <> " cells in total."];
-	];
-
 	cells = filterCells[cells, cellThreshold];
+	Print["After filtering, generated " <> IntegerString[Length[cells]] <> " cells in total."];
+
+	cellCenters = Map[getCellCenter, cells];
+	cellCenters = Sort[cellCenters];
+	Map[Print, cellCenters];
+
 	cells
 ];
 
@@ -302,11 +247,11 @@ GetDataThroughCache[p, q, r] := Module[
 	{},
 	data = <||>;
 	dataFileName = FileNameJoin[{dataFolder, shape <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
-	If[FileExistsQ[dataFileName], 
-      Print["Reading from from " <> dataFileName];
-      data = Get[dataFileName],
-      (* file do not exist *)
-      Print["Creating data for " <> dataFileName];
+	If[FileExistsQ[dataFileName] && False, 
+    Print["Reading from from " <> dataFileName];
+    data = Get[dataFileName],
+    (* file do not exist *)
+    Print["Creating data for " <> dataFileName];
 
 		cells = getCells[p, q, r, cellThreshold];
 		cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -329,8 +274,8 @@ GetDataThroughCache[p, q, r] := Module[
 			"vertices" -> vertices
 		|>;
 
-    Save[dataFileName, data];
-    Print["Saved data " <> dataFileName];
+    (* Save[dataFileName, data]; *)
+    (* Print["Saved data " <> dataFileName]; *)
   ];
   data
 ];

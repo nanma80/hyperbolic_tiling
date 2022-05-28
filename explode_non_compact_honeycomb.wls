@@ -214,6 +214,13 @@ Print["Setting layers to: " <> IntegerString[layers]];
 
 delayFactor = If[layers >= 4, 2, 3];
 
+
+cellCenters = Map[getCellCenter, cells];
+cellCenters = Sort[cellCenters];
+Map[Print, cellCenters];
+
+Exit[];
+
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	(* Return[]; *)
