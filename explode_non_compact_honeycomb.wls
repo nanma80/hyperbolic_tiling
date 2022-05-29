@@ -118,7 +118,7 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, he
 		height = getCellHeight[cell];
 		layer = heightsMap[Round[height, epsilon]];
 		nonlinearFactor = getNonlinearFactor[explosionFactor, layer];
-		Print["{acId, nonlinearFactor}"];
+		Print["{acId, nonlinearFactor, layer}"];
 		Print[{acId, nonlinearFactor, layer}];
 		activeCells[[acId]] = explodedCell[cell, nonlinearFactor];
 	];
@@ -214,12 +214,11 @@ Print["Setting layers to: " <> IntegerString[layers]];
 
 delayFactor = If[layers >= 4, 2, 3];
 
-
 cellCenters = Map[getCellCenter, cells];
 cellCenters = Sort[cellCenters];
 Map[Print, cellCenters];
-
-Exit[];
+Map[Print[HNorm[#]]&, cellCenters];
+(* Exit[]; *)
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
@@ -306,6 +305,9 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 				triangle = triangles[[triangleIndex]];
 				norm = HNorm[triangle[[1]]];
+				(* problem: cell center is not real center. different faces have different norms *)
+				(* Print[norm]; *)
+
 				planarPoints[l1_, l2_] := 
 					l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
 					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
@@ -432,10 +434,12 @@ exportAnimation[] := Module[
 (* exportFrame[0.0, 11, "test", False]; *)
 (* exportFrame[-2.0, 12, "test", False]; *)
 
-exportFrame[0.3, 21, "test", False];
-exportFrame[0.0, 22, "test", False];
-exportFrame[-2.0, 23, "test", False];
-
+(* exportFrame[4.0, 10, "test", False]; *)
+(* exportFrame[1.0, 20, "test", False]; *)
+(* exportFrame[0.3, 21, "test", False]; *)
+(* exportFrame[0.0, 22, "test", False]; *)
+(* exportFrame[-2.0, 23, "test", False]; *)
+exportFrame[-3.0, 24, "test", False];
 
 (* exportFrame[0.5, 2, "test", False]; *)
 (* exportFrame[1.0, 3, "test", False]; *)

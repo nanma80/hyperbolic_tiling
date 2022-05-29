@@ -32,7 +32,7 @@ imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 0.8;
 
-outputFolder = FileNameJoin[{imageFolder, "honeycombs"}];
+outputFolder = FileNameJoin[{imageFolder, "honeycombs", shape}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 exportToPov = True;
 splitEdgeParts = 8;
@@ -64,6 +64,8 @@ ApproxSamePointLoose[point1_, point2_] := Round[point1, 100 epsilon] == Round[po
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePointLoose[Total[N[set1]], Total[N[set2]]];
 sameCellCenter[cell1_, cell2_] := ApproxSamePoint[getCellCenter[cell1], getCellCenter[cell2]];
+overlappingCell[cell1_, cell2_] := Length[Intersection[Map[Mean, cell1], Map[Mean, cell2], SameTest -> ApproxSamePoint]] >= 2;
+
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
 
@@ -75,7 +77,8 @@ colorMap := <|
 	{6,3,3} -> Red,
 	{6,3,4} -> Blue,
 	{4,3,5} -> Green,
-	{5,3,5} -> Purple
+	{5,3,5} -> Purple,
+	{7,3,3} -> Red
 |>;
 
 getVertexFigureCoordinates[p_, q_, r_] := Module[
@@ -217,14 +220,16 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	cellThresholdStep1 = If[cellFirst, cellThreshold * 0.6, cellThreshold];
 	For[gIndex = 1, gIndex <= 6 && Length[cells] < cellThresholdStep1, gIndex++,
-		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> sameCellCenter];
+		cells = Union[cells, Map[HReflect[#, mirrors[[1]] ]&, cells, {3}], SameTest -> overlappingCell];
+
+		Print["gIndex = "  <> IntegerString[gIndex] <> "; mirror 1. Generated " <> IntegerString[Length[cells]] <> " cells so far"];
 
 		countStart = -1;
 		For[i = 0, i < 10 && countStart != Length[cells] && If[cellFirst, Length[cells] < cellThresholdStep1, True], i++,
 			countStart = Length[cells];
 			
 			For[mirrorIndex = 4, mirrorIndex >= 2, mirrorIndex--,
-				cells = Union[cells, Map[HReflect[#, mirrors[[mirrorIndex]] ]&, cells, {3}], SameTest -> sameCellCenter];
+				cells = Union[cells, Map[HReflect[#, mirrors[[mirrorIndex]] ]&, cells, {3}], SameTest -> overlappingCell];
 			];
 
 			Print["gIndex = "  <> IntegerString[gIndex] <> "; i = "  <> IntegerString[i] <> ". Generated " <> IntegerString[Length[cells]] <> " cells so far"];
@@ -238,7 +243,7 @@ getCells[p_, q_, r_, cellThreshold_] := Module[
 
 	cellCenters = Map[getCellCenter, cells];
 	cellCenters = Sort[cellCenters];
-	Map[Print, cellCenters];
+	(* Map[Print, cellCenters]; *)
 
 	cells
 ];
@@ -247,7 +252,7 @@ GetDataThroughCache[p, q, r] := Module[
 	{},
 	data = <||>;
 	dataFileName = FileNameJoin[{dataFolder, shape <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
-	If[FileExistsQ[dataFileName] && False, 
+	If[FileExistsQ[dataFileName], 
     Print["Reading from from " <> dataFileName];
     data = Get[dataFileName],
     (* file do not exist *)
@@ -274,8 +279,8 @@ GetDataThroughCache[p, q, r] := Module[
 			"vertices" -> vertices
 		|>;
 
-    (* Save[dataFileName, data]; *)
-    (* Print["Saved data " <> dataFileName]; *)
+    Save[dataFileName, data];
+    Print["Saved data " <> dataFileName];
   ];
   data
 ];
