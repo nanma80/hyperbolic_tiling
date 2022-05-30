@@ -75,6 +75,35 @@ getOpacityByExplosion[factor_] :=
   If[factor < maxExplosionFactor*opaqueFactor, 1, 
    1/(1 - opaqueFactor) - 1/(1 - opaqueFactor)/maxExplosionFactor*factor];
 
+getNonCompactCellCenter[cell_] := Module[
+	{samplePoints, face1Points, face2id, centerSolution},
+	
+	face1Points = cell[[1]][[Range[3]]];
+	For[face2id = 1, face2id <= Length[cell[[2]]], face2id++,
+		samplePoints = Join[face1Points, {cell[[2]][[face2id]]}];
+		If[Abs[Det[samplePoints]] > epsilon, 
+			Break[]
+		];
+	];
+
+	If[Abs[Det[samplePoints]] <= epsilon,
+		Print["Cannot construct samplePoints"];
+		Return[]
+	];
+
+	centerSolution = 
+		Solve[HInner[{w, x, y, z}, samplePoints[[1]]] == 
+		   HInner[{w, x, y, z}, samplePoints[[2]]] && 
+		  HInner[{w, x, y, z}, samplePoints[[1]]] == 
+		   HInner[{w, x, y, z}, samplePoints[[3]]] && 
+		  HInner[{w, x, y, z}, samplePoints[[1]]] == 
+		   HInner[{w, x, y, z}, samplePoints[[4]]] && 
+		   w == 1, 
+		   {w, x, y, z}
+	   ];
+	{w, x, y, z} /. centerSolution[[1]]
+];
+
 getSplitEdges[edges_] := Module[
 	{splitEdges, eid, edge, norm, splitParts},
 	splitEdges = {};
@@ -92,9 +121,14 @@ getHyperboloid[v_] := {v[[2]], v[[3]], v[[4]]};
 getKlein[v_] := {v[[2]], v[[3]], v[[4]]}/v[[1]];
 getPoincare[v_] := {v[[2]], v[[3]], v[[4]]}/(1+v[[1]]);
 getPoincareExploded[v_, norm_] := norm {v[[2]], v[[3]], v[[4]]}/(norm+v[[1]]);
-explodedCell[cell_, explosionFactor_] := Map[
-	(# + Mean[Map[Mean,cell]] * (HNorm[First[First[cell]]]/HNorm[Mean[Map[Mean, cell]]])^1.5 * explosionFactor)&, 
-	cell, {2}];
+explodedCell[cell_, explosionFactor_] := Module[
+	{cellCenter},
+	cellCenter = getNonCompactCellCenter[cell];
+	Map[
+			(# + cellCenter * explosionFactor)&, 
+			cell, {2}
+	]
+];
 
 explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, heightsMap_] := Module[
 	{inactiveCells, activeCells},
@@ -103,13 +137,13 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, he
 			inactiveCells = {};
 			activeCells = cells,
 		If[explosionStep == 2,
-			inactiveCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
-			activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]==0 &],
+			inactiveCells = Select[cells, Length[Intersection[{getNonCompactCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &];
+			activeCells = Select[cells, Length[Intersection[{getNonCompactCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]==0 &],
 			(* explosionStep == 1 *)
-			inactiveCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] < epsilon &];
-			activeCells = Select[cells, Norm[getCellCenter[#][[Range[2,4]]]] > epsilon && Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]
+			inactiveCells = Select[cells, Norm[getNonCompactCellCenter[#][[Range[2,4]]]] < epsilon &];
+			activeCells = Select[cells, Norm[getNonCompactCellCenter[#][[Range[2,4]]]] > epsilon && Length[Intersection[{getNonCompactCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]
 			(* inactiveCells = {}; *)
-			(* activeCells = Select[cells, Length[Intersection[{getCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]; *)
+			(* activeCells = Select[cells, Length[Intersection[{getNonCompactCellCenter[#]}, refCellCenters, SameTest -> ApproxSamePoint ]]>0 &]; *)
 		];
 	];
 
@@ -214,7 +248,7 @@ Print["Setting layers to: " <> IntegerString[layers]];
 
 delayFactor = If[layers >= 4, 2, 3];
 
-cellCenters = Map[getCellCenter, cells];
+cellCenters = Map[getNonCompactCellCenter, cells];
 cellCenters = Sort[cellCenters];
 Map[Print, cellCenters];
 Map[Print[HNorm[#]]&, cellCenters];
@@ -222,6 +256,8 @@ Map[Print[HNorm[#]]&, cellCenters];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
+	Print[DateString["ISODateTime"] <> " Generating frame for:"];
+	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
@@ -253,11 +289,15 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	];
 	Print[heightsMap];
 
-	colorMap[c_] := Green;
+	colorMap = <|
+		1 -> Green,
+		2 -> Red,
+		3 -> Blue
+	|>; 
 	range = 1.0;
-	cellsCenterHeights = Map[getCellHeight, cells];
-	cellsCenters = Map[Round[getCellCenter[#], epsilon]&, cells];
-	colorsByCells = Map[colorMap, cellsCenters];
+	cellsCenterHeights = Map[Round[getCellHeight[#], epsilon]&, cells];
+	colorsByCells = Map[colorMap[heightsMap[#]]&, cellsCenterHeights];
+	Print[colorsByCells];
 
 	cellsActiveAndInactive = explodeCellsByStep[cells, {}, explosionFactor, 0, heightsMap];
 	cellsActive = cellsActiveAndInactive[[1]];
@@ -293,7 +333,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 		For[cid = 1, cid <= Length[cells], cid++,
 			(* If[Mod[cid, 3] == 1, *)
-				Print["Generating surface for cell id " <> IntegerString[cid]];
+			Print[DateString["ISODateTime"] <> " Generating surface for cell id " <> IntegerString[cid]];
 			(* ]; *)
 			sampleCell = cells[[cid]];
 			isCenterCell = Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon;
@@ -326,7 +366,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		];
 	];
 
-	Print["Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
+	Print[DateString["ISODateTime"] <> " Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
 	Print["Range of plot: " <> ToString[range]];
 	thickness = range * 0.008;
@@ -334,11 +374,12 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	graphElements = {};
 
-	Print["Generated graph elements"];
+	Print[DateString["ISODateTime"] <> " Generated graph elements"];
+
 
 	graph = Graphics3D[
 		graphElements,
-		ViewPoint -> {3, -3.5, 1}*30,
+		ViewPoint -> {2, -4, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
@@ -347,20 +388,19 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		graph = Apply[Show, Join[{graph}, surfaces]];
 	];
 
-	Print["Defined graph"];
-
+	Print[DateString["ISODateTime"] <> " Defined graph"];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
 	If[exportToPov,
 	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-	  Print["Exporting to POV ray"];
+	  Print[DateString["ISODateTime"] <> " Exporting to POV ray"];
 	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
 	  Run[cropCommand];
 	  ,
 	  Export[outputFileName, graph];
 	];
-	Print["Saved an image to " <> outputFileName];
+	Print[DateString["ISODateTime"] <> " Saved an image to " <> outputFileName];
 ];
 
 exportAnimation[] := Module[
@@ -384,8 +424,8 @@ exportAnimation[] := Module[
 
 	frameIndex = 1;
 	explosionFactors = Table[k * 1.0, 
-		{k, maxExplosionFactor, (-layers + 2)*delayFactor, 
-			-(maxExplosionFactor + (layers - 2)*delayFactor)/(frameCount - 1)}];
+		{k, maxExplosionFactor, (-layers + 1)*delayFactor, 
+			-(maxExplosionFactor + (layers - 1)*delayFactor)/(frameCount - 1)}];
 
 	Print["explosionFactors"];
 	Print[explosionFactors];
@@ -429,7 +469,7 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-(* exportAnimation[]; *)
+exportAnimation[];
 
 (* exportFrame[0.0, 11, "test", False]; *)
 (* exportFrame[-2.0, 12, "test", False]; *)
@@ -439,7 +479,7 @@ exportAnimation[] := Module[
 (* exportFrame[0.3, 21, "test", False]; *)
 (* exportFrame[0.0, 22, "test", False]; *)
 (* exportFrame[-2.0, 23, "test", False]; *)
-exportFrame[-3.0, 24, "test", False];
+(* exportFrame[-3.0, 24, "test", False]; *)
 
 (* exportFrame[0.5, 2, "test", False]; *)
 (* exportFrame[1.0, 3, "test", False]; *)
