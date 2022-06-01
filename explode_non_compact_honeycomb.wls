@@ -1,11 +1,11 @@
 #!/usr/bin/env wolframscript
 
-maxExplosionFactor = 10.0;
+maxExplosionFactor = 20.0;
 frameCount = 150;
 
-(* maxExplosionFactor = 8.0;
+maxExplosionFactor = 500.0;
 frameCount = 6;
- *)
+
 cellThreshold = 10;
 (* cellThreshold = 40; *)
 
@@ -56,8 +56,10 @@ Rotation[t_] :=
   {0, -Sin[t], Cos[t]}
 };
 
-cellCenterToOrigin = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{-{1, 1, 1}, {1, 0, 0}}]}}];
+
 Boost[boost_] := {{Cosh[boost], Sinh[boost], 0, 0}, {Sinh[boost], Cosh[boost], 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
+
+BoostZ[boost_] := {{Cosh[boost], 0, 0, Sinh[boost]}, {0, 1, 0, 0}, {0, 0, 1, 0}, {Sinh[boost], 0, 0, Cosh[boost]}};
 
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
 centralReflect[point_, mirror_] := - HReflect[point, mirror];
@@ -71,9 +73,8 @@ sameCellCenter[cell1_, cell2_] := sameCenter[Flatten[cell1, 1], Flatten[cell2, 1
 getCellCenter[cell_] := Total[Flatten[cell, 1]]/Length[Flatten[cell, 1]];
 getCellHeight[cell_] := getCellCenter[cell][[1]];
 opaqueFactor = 2/3;
-getOpacityByExplosion[factor_] := 
-  If[factor < maxExplosionFactor*opaqueFactor, 1, 
-   1/(1 - opaqueFactor) - 1/(1 - opaqueFactor)/maxExplosionFactor*factor];
+(* getOpacityByExplosion[factor_] := If[factor < maxExplosionFactor*opaqueFactor, 1, 1/(1 - opaqueFactor) - 1/(1 - opaqueFactor)/maxExplosionFactor*factor]; *)
+getOpacityByExplosion[factor_] := 1;
 
 getNonCompactCellCenter[cell_] := Module[
 	{samplePoints, face1Points, face2id, centerSolution},
@@ -152,7 +153,6 @@ explodeCellsByStep[cells_, refCellCenters_, explosionFactor_, explosionStep_, he
 		height = getCellHeight[cell];
 		layer = heightsMap[Round[height, epsilon]];
 		nonlinearFactor = getNonlinearFactor[explosionFactor, layer];
-		Print["{acId, nonlinearFactor, layer}"];
 		Print[{acId, nonlinearFactor, layer}];
 		activeCells[[acId]] = explodedCell[cell, nonlinearFactor];
 	];
@@ -229,7 +229,7 @@ Print[cells//Length];
 newCellThreshold = cellThreshold;
 layers = 1;
 
-If[{p,q,r} == {6,3,3} && cellThreshold == 10 && False,
+If[{p,q,r} == {6,3,3} && cellThreshold == 20,
 	(* 1 + 20 + 60 + 12 *)
 	newCellThreshold = 4;
 	layers = 1;
@@ -252,14 +252,22 @@ delayFactor = If[layers >= 4, 2, 3];
 cellCenters = Map[getNonCompactCellCenter, cells];
 cellCenters = Sort[cellCenters];
 Map[Print, cellCenters];
-Map[Print[HNorm[#]]&, cellCenters];
 (* Exit[]; *)
+
+cellMeans = Map[getCellCenter, cells];
+minIndex = Ordering[cellMeans, 1][[1]];
+
+baseCellCenter = cellMeans[[minIndex]];
+Print["Moving this point to -z"];
+Print[baseCellCenter];
+
+cellCenterToNegativeZ = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{baseCellCenter[[Range[2, 4]]], {0, 0, -1}}]}}];
 
 exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Module[
 	{},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
-	If[frameIndex < 145, Return[]];
+	(* If[frameIndex < 145, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -276,6 +284,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	];
 
 	cells = data["cells"];
+	cells = Map[cellCenterToNegativeZ.# &, cells, {3}];
 	cells = filterCells[cells, newCellThreshold];
 
 	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -294,8 +303,8 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		1 -> Green,
 		2 -> Red,
 		3 -> Blue
-	|>; 
-	range = 1.0;
+	|>;
+	range = 1.5;
 	cellsCenterHeights = Map[Round[getCellHeight[#], epsilon]&, cells];
 	colorsByCells = Map[colorMap[heightsMap[#]]&, cellsCenterHeights];
 	Print[colorsByCells];
@@ -304,6 +313,21 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	cellsActive = cellsActiveAndInactive[[1]];
 	cellsInactive = cellsActiveAndInactive[[2]];
 	Print[Map[Length, {cellsActive, cellsInactive}]];
+
+
+	findBaseCell = Select[cellsActive, Norm[getNonCompactCellCenter[#][[{2,3}]]] < 0.001 && getNonCompactCellCenter[#][[4]] < 0 & ];
+	If[Length[findBaseCell] == 1, baseCell = findBaseCell[[1]], Print["cannot find base cell"]; Return[]];
+
+	Print[getNonCompactCellCenter[baseCell]];
+	vertices1 = Sort[Join[Flatten[baseCell, 1]]];
+	moveToNewCenter = BoostZ[ ArcCosh[vertices1[[1]][[1]]/HNorm[vertices1[[1]] ]]];
+
+	Print[vertices1[[1]]];
+	Print[vertices1[[1]].moveToNewCenter];
+
+	cellsActive = Map[#.moveToNewCenter &, cellsActive, {3}];
+	cellsInactive = Map[#.moveToNewCenter &, cellsInactive, {3}];
+	cellsActiveAndInactive = {cellsActive, cellsInactive};
 
 	facesActive = Join[Flatten[cellsActive, 1]];	
 	edgesActive = Join[ Flatten[Map[getEdgesFromFace, facesActive], 1]];
@@ -370,17 +394,40 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
 	Print["Range of plot: " <> ToString[range]];
-	thickness = range * 0.008;
+	thickness = range * 0.006;
 	thicknessDecayExponent = 1.0;
 
 	graphElements = {};
+	edgesTuple = {edgesActive, edgesInactive};
+	For[activeFlag = 1, activeFlag <= Length[edgesTuple], activeFlag++,
+		edges = edgesTuple[[activeFlag]];
+		opacity = If[activeFlag == 1, 
+			getOpacityByExplosion[explosionFactor],
+			1
+		];
+		Print["Edge opacity and count:"];
+		Print[{opacity, Length[edges]}];
+		AppendTo[graphElements,
+			{
+				Opacity[opacity], FaceForm[Gray],
+				Table[
+		            Cylinder[
+		                Map[projectTo3d, edges[[edgeIndex]]], 
+		                thickness * If[activeFlag==3, 1.05, 1] * 5/(1 + (edges[[edgeIndex]][[1]][[1]]/HNorm[edges[[edgeIndex]][[1]]])^thicknessDecayExponent + (edges[[edgeIndex]][[2]][[1]]/HNorm[edges[[edgeIndex]][[2]]])^thicknessDecayExponent)
+		            ],
+		            {edgeIndex, 1, Length[edges]}
+		        ]
+			}
+		];
+	];
 
 	Print[DateString["ISODateTime"] <> " Generated graph elements"];
 
-
 	graph = Graphics3D[
 		graphElements,
-		ViewPoint -> {2, -4, 1}*30,
+		(* ViewPoint -> {0, 0, 1000}*30, ViewVertical -> {1, 0, 0}, *)
+		(* ViewPoint -> {2, -4, 0}*30, *)
+		ViewPoint -> {4, -2, 2}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
@@ -424,9 +471,13 @@ exportAnimation[] := Module[
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
 	frameIndex = 1;
-	explosionFactors = Table[k * 1.0, 
+	kExponent = 16;
+	maxk = maxExplosionFactor^(1/kExponent);
+	explosionFactors = Table[(k^kExponent - 1.) + (-layers + 1)*delayFactor, {k, maxk, 1, -(maxk - 1)/frameCount}];
+
+(* 	explosionFactors = Table[k * 1.0, 
 		{k, maxExplosionFactor, (-layers + 1)*delayFactor, 
-			-(maxExplosionFactor + (layers - 1)*delayFactor)/(frameCount - 1)}];
+			-(maxExplosionFactor + (layers - 1)*delayFactor)/(frameCount - 1)}]; *)
 
 	Print["explosionFactors"];
 	Print[explosionFactors];
@@ -436,7 +487,7 @@ exportAnimation[] := Module[
 	(* frameIndex++; *)
 	exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 12], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
@@ -475,7 +526,8 @@ exportAnimation[];
 (* exportFrame[0.0, 11, "test", False]; *)
 (* exportFrame[-2.0, 12, "test", False]; *)
 
-(* exportFrame[4.0, 10, "test", False]; *)
+(* exportFrame[20.0, 10, "test", False]; *)
+(* exportFrame[4.0, 16, "test", False]; *)
 (* exportFrame[1.0, 20, "test", False]; *)
 (* exportFrame[0.3, 21, "test", False]; *)
 (* exportFrame[0.0, 22, "test", False]; *)
