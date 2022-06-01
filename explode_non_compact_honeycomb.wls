@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 10;
 (* cellThreshold = 40; *)
 
@@ -193,11 +193,12 @@ filterCells[cells_, cellThreshold_] := Module[
 getNonlinearFactor[linear_, layer_] := Module[
 	{layerOffset, linearOffset, returnValue},
 
+	minFactor = 0.004;
 	layerOffset = If[layer > 1, layer - 1, 0];
 	linearOffset = linear + layerOffset*delayFactor;
 	returnValue = linearOffset^2/maxExplosionFactor;
 	(* If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor]; *)
-	If[linearOffset < 0, returnValue = 0];
+	If[linearOffset < 0 || returnValue < minFactor, returnValue = minFactor];
 	returnValue
 ];
 
@@ -258,7 +259,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	{},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
-	(* Return[]; *)
+	If[frameIndex < 145, Return[]];
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
