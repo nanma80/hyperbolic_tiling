@@ -4,7 +4,7 @@ maxExplosionFactor = 20.0;
 frameCount = 150;
 
 maxExplosionFactor = 500.0;
-frameCount = 6;
+frameCount = 150;
 
 cellThreshold = 10;
 (* cellThreshold = 40; *)
@@ -31,7 +31,7 @@ imageFolder = "images";
 epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
-rangeFactor = 1.25;
+rangeFactor = 1.0;
 colors = Join[{Red, Blue, Green, Yellow, Magenta, LightCyan, Brown, Orange, Pink, Darker[Gray, 0.2], Cyan}, RandomColor[80]];
 
 outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
@@ -427,7 +427,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 		graphElements,
 		(* ViewPoint -> {0, 0, 1000}*30, ViewVertical -> {1, 0, 0}, *)
 		(* ViewPoint -> {2, -4, 0}*30, *)
-		ViewPoint -> {4, -2, 2}*30,
+		ViewPoint -> {50, -50, 50},
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
