@@ -1,10 +1,9 @@
 #!/usr/bin/env wolframscript
 
-maxExplosionFactor = 20.0;
-frameCount = 150;
-
 maxExplosionFactor = 500.0;
+
 frameCount = 150;
+(* frameCount = 20; *)
 
 cellThreshold = 10;
 (* cellThreshold = 40; *)
@@ -247,7 +246,7 @@ Print[tallyCounts];
 layers = Length[tallyCounts];
 Print["Setting layers to: " <> IntegerString[layers]];
 
-delayFactor = If[layers >= 4, 2, 3];
+delayFactor = If[layers >= 4, 5, 30];
 
 cellCenters = Map[getNonCompactCellCenter, cells];
 cellCenters = Sort[cellCenters];
@@ -471,7 +470,7 @@ exportAnimation[] := Module[
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
 	frameIndex = 1;
-	kExponent = 16;
+	kExponent = 4;
 	maxk = maxExplosionFactor^(1/kExponent);
 	explosionFactors = Table[(k^kExponent - 1.) + (-layers + 1)*delayFactor, {k, maxk, 1, -(maxk - 1)/frameCount}];
 
@@ -496,7 +495,7 @@ exportAnimation[] := Module[
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 12], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
