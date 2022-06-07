@@ -8,6 +8,9 @@ frameCount = 150;
 cellThreshold = 10;
 (* cellThreshold = 40; *)
 
+frameIndexMod = 0;
+(* frameIndexMod = 1; *)
+
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
 	Print["Usage: wolframscript.exe explode_honeycomb.wls <p> <q> <r> <cellThreshold>"];
@@ -228,7 +231,7 @@ Print[cells//Length];
 newCellThreshold = cellThreshold;
 layers = 1;
 
-If[{p,q,r} == {6,3,3} && cellThreshold == 20,
+If[{p,q,r} == {6,3,3} && cellThreshold == 20 && False,
 	(* 1 + 20 + 60 + 12 *)
 	newCellThreshold = 4;
 	layers = 1;
@@ -266,7 +269,9 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	{},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
-	(* If[frameIndex < 145, Return[]]; *)
+	(* Return[]; *)
+	If[frameIndex <= 164, Return[]];
+	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
