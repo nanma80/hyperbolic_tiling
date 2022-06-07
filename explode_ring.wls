@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
@@ -35,8 +35,14 @@ epsilon = 0.00000001;
 imageSize = {4, 3}/3 * 720;
 lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 1.65;
-(* disconnected faces, connected faces *)
-colors = {Yellow, Red};
+
+colorMap = <|
+	3 -> Red,
+	4 -> Yellow,
+	5 -> Blue,
+	6 -> Green
+|>;
+
 edgeColor = Lighter[Gray, 0.9];
 
 outputFolder = FileNameJoin[{imageFolder, "explode_honeycombs"}];
@@ -318,7 +324,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			For[fid = 1, fid <= Length[sampleCell], fid++,
 				face = sampleCell[[fid]];
 				triangles = splitFaceToTriangles[face];
-				color = If[Length[face] == p, colors[[1]], colors[[2]]];
+				color = colorMap[ Length[face] ];
 
 				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 					triangle = triangles[[triangleIndex]];
