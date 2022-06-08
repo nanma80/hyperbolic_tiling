@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
@@ -40,10 +40,10 @@ lighting = {{"Point", White, {10, -10, 10} * 5}};
 rangeFactor = 1.65;
 
 colorMap = <|
-	3 -> Red,
+	3 -> Green,
 	4 -> Yellow,
 	5 -> Blue,
-	6 -> Green,
+	6 -> Red,
 	8 -> Purple,
 	10 -> Cyan
 |>;
@@ -407,7 +407,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	graph = Graphics3D[
 		graphElements,
-		ViewPoint -> {3, -3.5, 1}*30,
+		ViewPoint -> {2.5, -3.5, 1}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
