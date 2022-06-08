@@ -3,14 +3,17 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-(* maxExplosionFactor = 8.0;
+maxExplosionFactor = 8.0;
 frameCount = 6;
- *)
+
 cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
 frameIndexMod = 0;
 (* frameIndexMod = 1; *)
+
+omni = False;
+omni = True;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -27,7 +30,7 @@ If[Length[argv] >= 3,
 ];
 
 Print["{" <> IntegerString[p] <> ", " <> IntegerString[q] <> "}"];
-shape = "explode_ring_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm];
+shape = "explode_" <> If[omni, "omni_", ""] <> "ring_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm];
 
 dataFolder = "data";
 imageFolder = "images";
@@ -40,7 +43,9 @@ colorMap = <|
 	3 -> Red,
 	4 -> Yellow,
 	5 -> Blue,
-	6 -> Green
+	6 -> Green,
+	8 -> Purple,
+	10 -> Cyan
 |>;
 
 edgeColor = Lighter[Gray, 0.9];
@@ -189,7 +194,7 @@ getNonlinearFactor[linear_, layer_] := Module[
 	returnValue
 ];
 
-dataFileName = FileNameJoin[{dataFolder, "ring_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
+dataFileName = FileNameJoin[{dataFolder, If[omni, "omni_", ""] <> "ring_" <> ToString[p, InputForm] <> "_" <> ToString[q, InputForm] <> "_" <> IntegerString[cellThreshold] <> ".wl"}];
 
 If[FileExistsQ[dataFileName], 
     Print["Reading from from " <> dataFileName];
