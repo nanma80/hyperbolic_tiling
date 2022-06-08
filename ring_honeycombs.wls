@@ -9,7 +9,7 @@ models = {"klein", "poincare"};
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2,
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]],
-	p = 4; q = 3
+	p = 5; q = 3
 ];
 
 cellThreshold = 50;
@@ -119,8 +119,24 @@ getCells[p_, q_, cellThreshold_] := Module[
 	(* only mirrors[[1]] is active *)
 	vertex1 = {5/Sqrt[7], -1, -1, 1};
 
+	phi = (1 + Sqrt[5])/2;
+
+	If[{p, q} == {5, 3},
+		mirrors = {
+			{0, 0, 0, 2},
+			{0, 1, 1/phi, -phi},
+			{0, -2, 0, 0},
+			{Sqrt[4 phi^4 + phi^2-3], phi, -2 phi^2, -1}
+		}/2;
+
+		solutions = Solve[HInner[{w, 0, y, -1}, mirrors[[2]]]==0 && HInner[{w, 0, y, -1}, mirrors[[4]]]==0, {w, y}];
+		Print[solutions//FullSimplify];
+		vertex1 = {w, 0, y, -1}/.solutions[[1]];
+	];
+
 	mirrorAngles = Table[Pi/ArcCos[HInner[mirrors[[i]], mirrors[[j]]]]//N, {i, 4}, {j, 4}];
 	Map[Print, mirrorAngles];
+	(* Map[Print[HInner[vertex1, #]//Simplify]&, mirrors]; *)
 
 	(* mirrors 1, 2, and then 3 *)
 	orderedMirrors = mirrors[[{1, 2, 3}]];
