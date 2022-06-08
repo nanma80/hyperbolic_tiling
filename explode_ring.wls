@@ -3,9 +3,9 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-(* maxExplosionFactor = 8.0;
+maxExplosionFactor = 8.0;
 frameCount = 6;
- *)
+
 cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
@@ -73,6 +73,7 @@ Rotation[t_] :=
 };
 
 cellCenterToOrigin = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{-{1, 1, 1}, {1, 0, 0}}]}}];
+cellFaceCenterToZ = ArrayFlatten[{{1, 0}, {0, RotationMatrix[{{0, 1, phi}, {0, 0, 1}}]}}];
 Boost[boost_] := {{Cosh[boost], Sinh[boost], 0, 0}, {Sinh[boost], Cosh[boost], 0, 0}, {0, 0, 1, 0}, {0, 0, 0, 1}};
 
 HReflect[point_, mirror_] := point - 2 * HInner[point, mirror]/HInner[mirror, mirror]*mirror;
@@ -207,23 +208,16 @@ If[FileExistsQ[dataFileName],
 
 cells = data["cells"];
 Print[cells//Length];
+If[{p,q} == {5,3},
+	cells = Map[#.cellFaceCenterToZ&, cells, {3}];
+];
 
 newCellThreshold = cellThreshold;
 layers = 1;
 
-If[{p,q} == {3,5} && cellThreshold == 100,
-	(* 1 + 12 + 20 + 30 + 60 *)
-	newCellThreshold = 123;
-];
-
-If[{p,q} == {3,5} && cellThreshold == 50,
-	(* 1 + 12 + 20 + 30 *)
+If[{p,q} == {5,3} && cellThreshold == 50 && omni == True,
+	(* {1, 12, 20, 30} *)
 	newCellThreshold = 63;
-];
-
-If[{p,q} == {5,3} && cellThreshold == 100,
-	(* 1 + 12 + 20 + 60 + 60 *)
-	newCellThreshold = 153;
 ];
 
 cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -235,7 +229,7 @@ Print[tallyCounts];
 layers = Length[tallyCounts];
 Print["Setting layers to: " <> IntegerString[layers]];
 
-delayFactor = If[layers >= 4, 2, 3];
+delayFactor = If[layers >= 5, 2, 3];
 
 (* for testing, 1 + 20 *)
 (* newCellThreshold = 21; *)
@@ -263,6 +257,10 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	];
 
 	cells = data["cells"];
+	If[{p,q} == {5,3},
+		cells = Map[#.cellFaceCenterToZ&, cells, {3}];
+	];
+
 	cells = filterCells[cells, newCellThreshold];
 
 	cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -331,6 +329,10 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 				triangles = splitFaceToTriangles[face];
 				color = colorMap[ Length[face] ];
 
+				If[isCenterCell && Length[face] == 10,
+					Print[Mean[face]];
+				];
+
 				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
 					triangle = triangles[[triangleIndex]];
 					norm = HNorm[triangle[[1]]];
@@ -343,7 +345,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 					area = Area[Triangle[triangleCorners]];
 					AppendTo[triangleAreas, area];
 					(* plotPoints = If[area < meanArea, 3, 8]; *)
-					plotPoints = 8;
+					plotPoints = splitEdgeParts;
 					AppendTo[allPlotPoints, plotPoints];
 
 					surface = ParametricPlot3D[
@@ -407,7 +409,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	graph = Graphics3D[
 		graphElements,
-		ViewPoint -> {2.5, -3.5, 1}*30,
+		ViewPoint -> {3, -3, 2}*30,
 		PlotRange -> {{-range, range}, {-range, range}, {-range, range}},
 		Lighting -> lighting
 	];
