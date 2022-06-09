@@ -22,7 +22,7 @@ If[Length[argv] < 3,
 
 If[Length[argv] >= 2, 
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]],
-	p = 4; q = 3; 
+	p = 5; q = 3; 
 ];
 
 If[Length[argv] >= 3, 
@@ -61,6 +61,16 @@ ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pv
 phi = (1 + Sqrt[5])/2;
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 splitFaceToTriangles[face_] := Table[{face[[1]], face[[k-1]], face[[k]]}, {k, 3, Length[face]}];
+
+splitFaceToQuads[face_] := Module[
+	{pieces},
+	pieces = {};
+	For[id = 2, id <= Length[face] - 1, id = id + 2,
+		AppendTo[pieces, {face[[1]], face[[id]], face[[id + 1]], face[[Min[id + 2, Length[face]]]]}]
+	];
+	pieces
+];
+
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
 HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
@@ -217,7 +227,8 @@ layers = 1;
 
 If[{p,q} == {5,3} && cellThreshold == 50 && omni == True,
 	(* {1, 12, 20, 30} *)
-	newCellThreshold = 63;
+	newCellThreshold = 1;
+	(* newCellThreshold = 63; *)
 ];
 
 cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -302,10 +313,6 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 
 	surfaces = {};
 	cellsCenters = Map[getCellCenter, Join[cellsActive, cellsInactive]];
-	triangleAreas = {};
-	(* from previous calculation *)
-	meanArea = 0.007865788269109409;
-	allPlotPoints = {};
 
 	For[activeFlag = 1, activeFlag <= 2, activeFlag ++,
 		cells = cellsActiveAndInactive[[activeFlag]];
@@ -326,27 +333,18 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			cellHeight = getCellHeight[sampleCell];
 			For[fid = 1, fid <= Length[sampleCell], fid++,
 				face = sampleCell[[fid]];
-				triangles = splitFaceToTriangles[face];
+				quads = splitFaceToQuads[face];
 				color = colorMap[ Length[face] ];
 
-				If[isCenterCell && Length[face] == 10,
-					Print[Mean[face]];
-				];
-
-				For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-					triangle = triangles[[triangleIndex]];
-					norm = HNorm[triangle[[1]]];
+				For[triangleIndex = 1, triangleIndex <= Length[quads], triangleIndex++,
+					quad = quads[[triangleIndex]];
+					norm = HNorm[quad[[1]]];
 					planarPoints[l1_, l2_] := 
-						l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-						(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+						l2 (l1 quad[[1]] + (1 - l1) quad[[2]]) +
+						(1 - l2) (l1 quad[[4]] + (1 - l1) quad[[3]]);
 					normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 					poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
-					triangleCorners = {poincarePoints[0,0], poincarePoints[0,1], poincarePoints[1,0]};
-					area = Area[Triangle[triangleCorners]];
-					AppendTo[triangleAreas, area];
-					(* plotPoints = If[area < meanArea, 3, 8]; *)
 					plotPoints = splitEdgeParts;
-					AppendTo[allPlotPoints, plotPoints];
 
 					surface = ParametricPlot3D[
 						poincarePoints[l1, l2], {l1, 0, 1}, {l2, 0, 1},
@@ -367,13 +365,6 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			];
 		];
 	];
-
-	Print["area stats"];
-	Print[{Length[triangleAreas],Mean[triangleAreas], Median[triangleAreas]}];
-	Print["meanArea ="];
-	Print[Mean[triangleAreas]];
-	Print[Table[Quantile[triangleAreas, k], {k, 0, 1, 0.1}]];
-	Print[Sort[Tally[allPlotPoints]]];
 
 	Print[DateString["ISODateTime"] <> " Populated surfaces. Count: " <> IntegerString[Length[surfaces]]];
 
@@ -499,56 +490,15 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-exportAnimation[];
+(* exportAnimation[]; *)
 
-(* exportFrame[0.0, 1, "test", False]; *)
-(* exportFrame[0.5, 2, "test", False]; *)
-(* exportFrame[1.0, 3, "test", False]; *)
-(* exportFrame[4.0, 4, "test", False]; *)
+exportFrame[0.0, 1, "test", False];
 
 (* 
-for ($num = 118 ; $num -le 134 ; $num++) { cp frame_0117.png "frame_0$num.png" }
+For omni ring 5 3
+split faces to triangles: 
+236 surfaces per cell
+
+quad: 118
+
  *)
-
-(* 
-PlotPoints -> 5, for 535, 50, 
-last frame took about 1 hour.
-
-535 10, PlotPoints -> 3
-last frame: 2 min
-not looking good
-
-535 10, PlotPoints -> 8
-last frame: 5 min
-
-535 10, MaxRecursion -> 1
-last frame: 14 min
-
-535 10, MaxRecursion -> 0
-last frame: 9 min
-
-535 10, default
-last frame: 9 min
-
-
-535 10, area stats:
-
-{2436, 0.007865788269109409, 0.003914305013057897}
-{0.0011045462053664182, 0.0015475698165937502, 0.0022258688217539537, 0.002602268120372627, 0.0032355032692118007, 0.003914305013057896, 0.005874011961751207, 0.007917389281519666, 0.014033506404016778, 0.01832494070468431, 0.036649881409370456}
-
-535 10, dynamic plotpoints between 3 and 8
-still 2 min. Not looking very good. Close to the look of 3.
-
-even/odd experiment
-535 10, 6 frames. skip #1. 
-start time: 9:08
-end time: 9:33. 25 min
-
-no even/odd, all frames:
-535 10, 6 frames, skp #1
-start time: 9:47
-end time: 10:29. 42 min
-
-40% reduction of execution time by doing even/odd
-
-*)
