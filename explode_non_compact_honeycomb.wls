@@ -1,9 +1,9 @@
 #!/usr/bin/env wolframscript
 
-maxExplosionFactor = 500.0;
+maxExplosionFactor = 10.0;
 
-frameCount = 150;
-(* frameCount = 20; *)
+(* frameCount = 150; *)
+frameCount = 20;
 
 cellThreshold = 10;
 (* cellThreshold = 40; *)
@@ -77,6 +77,7 @@ getCellHeight[cell_] := getCellCenter[cell][[1]];
 opaqueFactor = 2/3;
 (* getOpacityByExplosion[factor_] := If[factor < maxExplosionFactor*opaqueFactor, 1, 1/(1 - opaqueFactor) - 1/(1 - opaqueFactor)/maxExplosionFactor*factor]; *)
 getOpacityByExplosion[factor_] := 1;
+
 
 getNonCompactCellCenter[cell_] := Module[
 	{samplePoints, face1Points, face2id, centerSolution},
@@ -192,13 +193,20 @@ filterCells[cells_, cellThreshold_] := Module[
 	filteredCells
 ];
 
+transitionFraction = 0.6;
+newExponent = 2*8;
+new[x_] := 
+  x^newExponent/maxExplosionFactor^(newExponent - 1)/transitionFraction^(newExponent - 2)/(newExponent/2) + maxExplosionFactor transitionFraction^2/(newExponent/2)*(newExponent/2 - 1);
+
 getNonlinearFactor[linear_, layer_] := Module[
 	{layerOffset, linearOffset, returnValue},
 
 	minFactor = 0.004;
 	layerOffset = If[layer > 1, layer - 1, 0];
 	linearOffset = linear + layerOffset*delayFactor;
-	returnValue = linearOffset^2/maxExplosionFactor;
+	(* returnValue = linearOffset^2/maxExplosionFactor; *)
+	returnValue = If[linearOffset > transitionFraction maxExplosionFactor, 
+   new[linearOffset], linearOffset^2/maxExplosionFactor];
 	(* If[returnValue > maxExplosionFactor, returnValue = maxExplosionFactor]; *)
 	If[linearOffset < 0 || returnValue < minFactor, returnValue = minFactor];
 	returnValue
@@ -249,7 +257,7 @@ Print[tallyCounts];
 layers = Length[tallyCounts];
 Print["Setting layers to: " <> IntegerString[layers]];
 
-delayFactor = If[layers >= 4, 5, 30];
+delayFactor = 3;
 
 cellCenters = Map[getNonCompactCellCenter, cells];
 cellCenters = Sort[cellCenters];
@@ -270,7 +278,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	If[frameIndex <= 164, Return[]];
+	(* If[frameIndex <= 164, Return[]]; *)
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
@@ -477,11 +485,11 @@ exportAnimation[] := Module[
 	frameIndex = 1;
 	kExponent = 4;
 	maxk = maxExplosionFactor^(1/kExponent);
-	explosionFactors = Table[(k^kExponent - 1.) + (-layers + 1)*delayFactor, {k, maxk, 1, -(maxk - 1)/frameCount}];
+	(* explosionFactors = Table[(k^kExponent - 1.) + (-layers + 1)*delayFactor, {k, maxk, 1, -(maxk - 1)/frameCount}]; *)
 
-(* 	explosionFactors = Table[k * 1.0, 
+	explosionFactors = Table[k * 1.0, 
 		{k, maxExplosionFactor, (-layers + 1)*delayFactor, 
-			-(maxExplosionFactor + (layers - 1)*delayFactor)/(frameCount - 1)}]; *)
+			-(maxExplosionFactor + (layers - 1)*delayFactor)/(frameCount - 1)}];
 
 	Print["explosionFactors"];
 	Print[explosionFactors];
