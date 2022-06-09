@@ -3,14 +3,14 @@
 maxExplosionFactor = 10.0;
 frameCount = 150;
 
-maxExplosionFactor = 8.0;
+(* maxExplosionFactor = 8.0;
 frameCount = 6;
-
+ *)
 cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
 frameIndexMod = 0;
-(* frameIndexMod = 1; *)
+frameIndexMod = 1;
 
 omni = False;
 omni = True;
@@ -227,8 +227,8 @@ layers = 1;
 
 If[{p,q} == {5,3} && cellThreshold == 50 && omni == True,
 	(* {1, 12, 20, 30} *)
-	newCellThreshold = 1;
-	(* newCellThreshold = 63; *)
+	(* newCellThreshold = 1; *)
+	newCellThreshold = 63;
 ];
 
 cellCenterHeights = Map[getCellCenter[#][[1]]&, cells];
@@ -250,8 +250,8 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	(* If[frameIndex <= 175, Return[]]; *)
-	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
+	If[frameIndex <= 73, Return[]];
+	If[Mod[frameIndex, 2] != frameIndexMod, Return[]];
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
@@ -490,9 +490,9 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-(* exportAnimation[]; *)
+exportAnimation[];
 
-exportFrame[0.0, 1, "test", False];
+(* exportFrame[0.0, 1, "test", False]; *)
 
 (* 
 For omni ring 5 3
