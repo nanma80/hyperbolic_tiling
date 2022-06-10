@@ -2,14 +2,14 @@
 
 maxExplosionFactor = 10.0;
 
-(* frameCount = 150; *)
-frameCount = 20;
+frameCount = 150;
+(* frameCount = 20; *)
 
 cellThreshold = 10;
 (* cellThreshold = 40; *)
 
 frameIndexMod = 0;
-(* frameIndexMod = 1; *)
+frameIndexMod = 1;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] < 3,
@@ -47,6 +47,15 @@ ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pv
 phi = (1 + Sqrt[5])/2;
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 splitFaceToTriangles[face_] := Table[{face[[1]], face[[k-1]], face[[k]]}, {k, 3, Length[face]}];
+splitFaceToQuads[face_] := Module[
+	{pieces},
+	pieces = {};
+	For[id = 2, id <= Length[face] - 1, id = id + 2,
+		AppendTo[pieces, {face[[1]], face[[id]], face[[id + 1]], face[[Min[id + 2, Length[face]]]]}]
+	];
+	pieces
+];
+
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
 HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
@@ -278,7 +287,7 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{explosionFactor, frameIndex}];
 	(* Return[]; *)
-	(* If[frameIndex <= 164, Return[]]; *)
+	If[frameIndex <= 175, Return[]];
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
 	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
 	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
@@ -376,18 +385,18 @@ exportFrame[explosionFactor_, frameIndex_, outputFolderName_, copyLast_] := Modu
 			isCenterCell = Norm[getCellCenter[sampleCell][[Range[2,4]]] ] < epsilon;
 			cellOpacity = If[isCenterCell, 1, opacity];
 			cellHeight = getCellHeight[sampleCell];
-			triangles = Flatten[Map[splitFaceToTriangles, sampleCell], 1];
+			quads = Flatten[Map[splitFaceToQuads, sampleCell], 1];
 			color = colorsByCells[[cid]];
 
-			For[triangleIndex = 1, triangleIndex <= Length[triangles], triangleIndex++,
-				triangle = triangles[[triangleIndex]];
-				norm = HNorm[triangle[[1]]];
+			For[triangleIndex = 1, triangleIndex <= Length[quads], triangleIndex++,
+				quad = quads[[triangleIndex]];
+				norm = HNorm[quad[[1]]];
 				(* problem: cell center is not real center. different faces have different norms *)
 				(* Print[norm]; *)
 
 				planarPoints[l1_, l2_] := 
-					l2 (l1 triangle[[1]] + (1 - l1) triangle[[2]]) +
-					(1 - l2) (l1 triangle[[1]] + (1 - l1) triangle[[3]]);
+						l2 (l1 quad[[1]] + (1 - l1) quad[[2]]) +
+						(1 - l2) (l1 quad[[4]] + (1 - l1) quad[[3]]);
 				normalizedPoints[l1_, l2_] := HNormalize[planarPoints[l1, l2], norm];
 				poincarePoints[l1_, l2_] := getPoincareExploded[normalizedPoints[l1, l2], norm];
 				surface = ParametricPlot3D[
@@ -499,7 +508,7 @@ exportAnimation[] := Module[
 	(* frameIndex++; *)
 	exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 12], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
@@ -508,7 +517,7 @@ exportAnimation[] := Module[
 		exportFrame[explosionFactor, frameIndex++, outputFrameFolderName, False];
 	];
 
-	For[fid = 1, fid <= Ceiling[frameCount / 12], fid++,
+	For[fid = 1, fid <= Ceiling[frameCount / 6], fid++,
 		exportFrame[0, frameIndex++, outputFrameFolderName, True]
 	];
 
