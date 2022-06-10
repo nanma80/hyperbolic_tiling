@@ -10,7 +10,7 @@ cellThreshold = 50;
 (* cellThreshold = 300; *)
 (* cellThreshold = 1000; *)
 frameIndexMod = 0;
-frameIndexMod = 1;
+(* frameIndexMod = 1; *)
 
 omni = False;
 omni = True;
