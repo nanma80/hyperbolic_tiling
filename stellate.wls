@@ -9,9 +9,9 @@ highlightCommonFaces = False;
 
 exportToPov = True;
 (* highlightCenter = True; *)
-(* topView = True; *)
+topView = True;
 convexHull = True;
-(* plotFaces = True; *)
+plotFaces = True;
 (* highlightCommonFaces = True; *)
 
 shapes = {
@@ -87,7 +87,7 @@ plotShape3D[faces_] := Module[
 
 	(* selectedFaces = Select[faces, (Total[#]/Length[#])[[1]] < 10 &]; *)
 	selectedFaces = faces;
-	(* selectedFaces = Select[selectedFaces, Norm[Mean[#][[{2, 3}]]] < 8 &]; *)
+	selectedFaces = Select[selectedFaces, Norm[Mean[#][[{2, 3}]]] < 8 &];
 	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
 	(* selectedFaces = Union[selectedFaces, -selectedFaces]; *)
 	(* panning = 0; *)
@@ -200,6 +200,17 @@ plotShape3D[faces_] := Module[
 				},
 				{
 					Opacity[1], FaceForm[highlightColor], Map[Cylinder[#, thickness * 2.2]&, displayCenteredEdges]
+				}
+			}
+		];
+	];
+
+	If[plotFaces,
+		elements = Union[
+			elements,
+			{
+				{
+					Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
 				}
 			}
 		];
