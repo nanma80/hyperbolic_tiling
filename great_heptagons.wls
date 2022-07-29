@@ -1,7 +1,6 @@
 #!/usr/bin/env wolframscript
 
 exportToPov = False;
-topView = False;
 plotFaces = False;
 plotEdges = False;
 plotVertices = False;
@@ -11,13 +10,16 @@ vertexFigureTopology = False;
 
 
 exportToPov = True;
-(* topView = True; *)
-plotVertices = True;
-(* plotFaces = True; *)
-plotEdges = True;
+(* plotVertices = True; *)
+plotFaces = True;
+(* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
+
+(* viewAngle = "top"; *)
+viewAngle = "side";
+(* viewAngle = ""; *)
 
 (* 
 	4: 5 lines
@@ -58,6 +60,7 @@ epsilon = 0.00000001;
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
 
+RoundEpsilon[v_] := Round[v, epsilon];
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
 HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
@@ -193,12 +196,32 @@ plotShape3D[faces_] := Module[
 	Print["tally of tallyVertices"];
 	Print[Tally[Map[#[[2]]&, tallyVertices]]];
 
+(* 	For[k=1, k<=Length[truncatedEdges], k++,
+		te = truncatedEdges[[k]];
+		Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}];
+		For[k2=k+1, k2<=Length[truncatedEdges], k2++,
+			te2 = truncatedEdges[[k2]];
+			int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
+			If[Length[int] == 1,
+				comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
+				comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
+				Print[{k, 
+					k2, 
+					HInner[comp1, comp2]//RoundEpsilon, 
+					HNorm[comp1 - comp2]//RoundEpsilon,
+					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon
+				}];
+			];
+		];
+	];
+ *)
+
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
 		displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
 	];
 
-	roundedVertexFigure = Round[truncatedEdges, epsilon];
+	roundedVertexFigure = RoundEpsilon[truncatedEdges];
 	vfTopologyGraph = GraphPlot3D[
 		Map[(#[[1]] -> #[[2]])&, roundedVertexFigure],
 		EdgeShapeFunction -> ({FaceForm[Red], Cylinder[#1, 0.03]} &), 
@@ -210,7 +233,7 @@ plotShape3D[faces_] := Module[
 
 	rangeZoom = stellationLevel * 1.5;
 	lighting = {{"Point", White, {50, -50, 50}}};
-	range = 3 * rangeZoom;
+	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-2, 0, 0};
 
@@ -278,8 +301,8 @@ plotShape3D[faces_] := Module[
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[topView, {1000, 0, 0}, {3, -3, 3}],
-		ViewVertical -> If[topView, {0, 1, 0}, {1, 0, 0}],
+		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {50, -50, 50}]],
+		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
 	];
@@ -296,7 +319,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[topView, "topView_", ""] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
+outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
 
 (* imageSize = {600, 450}; *)
 imageSize = {4, 3}/3 * 720;
