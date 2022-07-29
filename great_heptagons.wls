@@ -15,21 +15,28 @@ exportToPov = True;
 plotVertices = True;
 (* plotFaces = True; *)
 plotEdges = True;
-highlightCommonFaces = True;
+(* highlightCommonFaces = True; *)
 (* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 
 (* 
+	4: 5 lines
 	8: vertex figure has 9 lines. 
 	58: 17 lines. All data from the precomputed data file 
 *)
+(* truncateThreshold = 2; *)
+(* truncateThreshold = 3; *)
+(* truncateThreshold = 4; *)
+(* truncateThreshold = 6; *)
 truncateThreshold = 8;
+(* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
 
 
 (* vfRatio = 1/2: connecting midpoints. = 1: connecting neighboring points of topVertex *)
-vfRatio = 1/2;
-vfRatio = 1;
+vfRatio = 1/4;
+(* vfRatio = 1/2; *)
+(* vfRatio = 1; *)
 
 (* always use convexhull *)
 convexHull = True;
@@ -46,8 +53,6 @@ stellationLevel = 3;
 ratio = Tan[stellationLevel Pi/7]/Tan[Pi/7];
 
 splitEdgeParts = 8;
-colors = {Red, Blue, Purple};
-colorsConvexHull = {Red, Green, Orange};
 dataFolder = "data";
 epsilon = 0.00000001;
 Needs["POVRayRender`"];
@@ -81,6 +86,8 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 getHyperboloid[v_] := {-v[[1]], v[[2]], v[[3]]};
+getColor[center_] := Hue[ Mod[Arg[ center[[2]] + I center[[3]] ], 2 Pi]/2/Pi, (Tanh[center[[1]]/10 + 0.5 ] + 1)/2 , 1];
+
 
 scale[edge_, ratio_] := Module[
 	{center},
@@ -99,11 +106,6 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 plotShape3D[faces_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
-	color = 
-		If[convexHull,
-			colorsConvexHull[[stellationLevel]],
-			colors[[stellationLevel]]
-		];
 
 	selectedFaces = faces;
 
@@ -112,14 +114,13 @@ plotShape3D[faces_] := Module[
 	(* panning = 0; *)
 	(* selectedFaces = Map[Boost[panning].# &, selectedFaces, {2}]; *)
 
-
 	(* kleinFaces = Map[getKlein, faces, {2}]; *)
 	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 
 	stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
 
 	convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
-	If[convexHull, stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces]];
+	stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
 
 	displayStellatedFaces = Map[getHyperboloid, stellatedFaces, {2}];
 	displayFaces = displayStellatedFaces;
@@ -130,21 +131,10 @@ plotShape3D[faces_] := Module[
 	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
 	edges = Union[allEdges, SameTest -> sameEdge];
 
-	(* normSquares = Map[HNormSquare, Flatten[edges, 1]] is always constant, no matter what ratio is *)
-
 	Print["There are " <> IntegerString[Length[edges]] <> " distinct edges in total."];
-	(* norm = HNorm[edges[[1]][[1]]]; *)
-
-	(* splitEdges = Flatten[ Map[splitEdge[#, splitEdgeParts]&, edges], 1]; *)
-	(* splitEdges = Map[HNormalize[#, norm]&, splitEdges, {2}]; *)
-	(* Print["There are " <> IntegerString[Length[splitEdges]] <> " edges after split."]; *)
 	displayEdges = Map[getHyperboloid, edges, {2}];
-
-	(* allVertices = Flatten[displayFaces,1]; *)
 	allVertices = Flatten[displayEdges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
-(* 	Print["Tallying the z value of vertices"];
-	Print[Sort[Tally[Map[#[[1]]&, vertices], Abs[#1 - #2]<0.00001&], (#1[[1]] > #2[[1]])& ] ]; *)
 
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
@@ -170,9 +160,10 @@ plotShape3D[faces_] := Module[
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
 
-	centeredFaces = Select[stellatedFaces, (Abs[Total[#][[2]]]<0.001)&&(Abs[Total[#][[3]]]<0.001)&];
 	
 	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
+	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
+	allFacesAfterTruncation = otherFaces;
 
 	displayCenteredEdges = Flatten[Map[getEdgesFromFace, displayCenteredFaces], 1];
 
@@ -182,6 +173,12 @@ plotShape3D[faces_] := Module[
 		faceToTruncate = displayCenteredFaces[[fid]];
 		vid = Select[Range[Length[faceToTruncate]], ApproxSamePoint[faceToTruncate[[#]], topVertex]&][[1]];
 		faceToTruncate = RotateLeft[faceToTruncate, vid - 1];
+		truncatedCenteredFace = Join[
+			{faceToTruncate[[1]] (1 - vfRatio) + vfRatio faceToTruncate[[ Length[faceToTruncate] ]]},
+			{faceToTruncate[[1]] (1 - vfRatio) + vfRatio faceToTruncate[[2]]},
+			faceToTruncate[[Range[2, Length[faceToTruncate] ]]]
+		];
+		AppendTo[allFacesAfterTruncation, truncatedCenteredFace];
 		AppendTo[truncatedEdges, 
 			{
 				faceToTruncate[[1]] (1 - vfRatio) + faceToTruncate[[ Length[faceToTruncate] ]] vfRatio,
@@ -195,6 +192,11 @@ plotShape3D[faces_] := Module[
 	tallyVertices = Tally[verticesInVf, ApproxSamePoint[#1, #2]&];
 	Print["tally of tallyVertices"];
 	Print[Tally[Map[#[[2]]&, tallyVertices]]];
+
+	If[vertexFigure,
+		displayFaces = allFacesAfterTruncation;
+		displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
+	];
 
 	roundedVertexFigure = Round[truncatedEdges, epsilon];
 	vfTopologyGraph = GraphPlot3D[
@@ -218,7 +220,7 @@ plotShape3D[faces_] := Module[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[Blue], Map[Sphere[#, thickness * 4]&, vertices]
+					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices]
 				}
 			}
 		];	
@@ -227,11 +229,16 @@ plotShape3D[faces_] := Module[
 	If[plotEdges,
 		elements = Union[
 			elements,
+			Table[
 			{
-				{
-					Opacity[If[highlightCommonFaces, 1, 1]], FaceForm[If[plotFaces, White, color]], Map[Cylinder[#, thickness * (1 + 0.00001/(1+ Abs[#[[1]][[1]] - #[[2]][[1]]] )) ]&, displayEdges]
-				}
-			}
+					Opacity[If[highlightCommonFaces, 1, 1]], 
+					FaceForm[If[plotFaces, White, getColor[Mean[displayEdges[[k]]]]]], 
+					Cylinder[
+						displayEdges[[k]], 
+						thickness * (1 + 0.00001/(1+ Abs[displayEdges[[k]][[1]][[1]] - displayEdges[[k]][[2]][[1]]] )) 
+					]
+			},
+			{k, 1, Length[displayEdges]}]
 		];
 	];
 
@@ -265,11 +272,7 @@ plotShape3D[faces_] := Module[
 	If[plotFaces,
 		elements = Union[
 			elements,
-			{
-				{
-					Opacity[1], FaceForm[color], Map[Polygon, displayFaces]
-				}
-			}
+			Table[{Opacity[1], FaceForm[getColor[Mean[displayFaces[[k]]]]], Polygon[displayFaces[[k]]]}, {k, 1, Length[displayFaces]}]
 		];
 	];
 
