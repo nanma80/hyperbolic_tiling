@@ -6,13 +6,15 @@ topView = False;
 convexHull = False;
 plotFaces = False;
 highlightCommonFaces = False;
+antipodal = False;
 
 exportToPov = True;
-(* highlightCenter = True; *)
-topView = True;
+highlightCenter = True;
+(* topView = True; *)
 convexHull = True;
-plotFaces = True;
-(* highlightCommonFaces = True; *)
+(* plotFaces = True; *)
+highlightCommonFaces = True;
+antipodal = True;
 
 shapes = {
 	"h_7_3"
@@ -89,7 +91,9 @@ plotShape3D[faces_] := Module[
 	selectedFaces = faces;
 	selectedFaces = Select[selectedFaces, Norm[Mean[#][[{2, 3}]]] < 8 &];
 	(* norms of 2,3: 0, 2.239, 5.37, 7.6, 13.7... *)
-	(* selectedFaces = Union[selectedFaces, -selectedFaces]; *)
+	If[antipodal,
+		selectedFaces = Union[selectedFaces, -selectedFaces];
+	];
 	(* panning = 0; *)
 	(* selectedFaces = Map[Boost[panning].# &, selectedFaces, {2}]; *)
 
@@ -242,7 +246,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[highlightCenter, "highlightCenter_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
+outputFileName = If[antipodal, "antipodal_", ""] <> If[highlightCenter, "highlightCenter_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[topView, "topView_", ""] <> If[convexHull, "convexHull_", ""] <> If[!plotFaces, "skeleton_", ""] <> IntegerString[stellationLevel] <> "_hyperboloid.png";
 
 (* imageSize = {600, 450}; *)
 imageSize = {800, 600};
