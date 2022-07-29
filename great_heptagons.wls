@@ -11,7 +11,7 @@ vertexFigureTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-plotFaces = True;
+(* plotFaces = True; *)
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
 vertexFigure = True;
@@ -24,20 +24,21 @@ viewAngle = "side";
 (* 
 	4: 5 lines
 	8: vertex figure has 9 lines. 
+	28: 13 lines
 	58: 17 lines. All data from the precomputed data file 
 *)
 (* truncateThreshold = 2; *)
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-truncateThreshold = 8;
-(* truncateThreshold = 28; *)
+(* truncateThreshold = 8; *)
+truncateThreshold = 28;
 (* truncateThreshold = 58; *)
 
 
 (* vfRatio = 1/2: connecting midpoints. = 1: connecting neighboring points of topVertex *)
-vfRatio = 1/4;
-(* vfRatio = 1/2; *)
+(* vfRatio = 1/4; *)
+vfRatio = 1/2;
 (* vfRatio = 1; *)
 
 (* always use convexhull *)
