@@ -11,15 +11,15 @@ vertexFigureTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-vertexFigure = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -31,8 +31,8 @@ viewAngle = "side";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-(* truncateThreshold = 8; *)
-truncateThreshold = 28;
+truncateThreshold = 8;
+(* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
 
 
@@ -52,6 +52,14 @@ dataFolder = "data";
 epsilon = 0.00000001;
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
+
+imageSize = {4, 3}/3 * 720;
+imageFolder = "images";
+outputFolder = FileNameJoin[{imageFolder, "great_heptagons"}];
+If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
+
+shapeWithParams = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold];
+
 
 RoundEpsilon[v_] := Round[v, epsilon];
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
@@ -99,13 +107,10 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	Map[#[[1]]&, edges[[edgeOrders]]]
 ];
 
-plotShape3D[faces_] := Module[
+plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 	{allEdges, edges, allVertices, vertices},
-	configs = Get["configs.wl"];
 
-	selectedFaces = faces;
-
-	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
+	selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
 	selectedFaces = Union[selectedFaces, -selectedFaces];
 
 	(* heights = Map[Abs[Mean[#][[1]]]&, selectedFaces]; *)
@@ -305,13 +310,91 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {50, -50, 50}]],
+		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {30, -50, 50}]],
 		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
 	];
 
 	If[vertexFigureTopology, vfTopologyGraph, graph]
+];
+
+exportFrame[heightLevel_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
+	{},
+	Print[DateString["ISODateTime"] <> " Generating frame for:"];
+	Print[{frameIndex, heightLevel, progressInLevel}];
+	(* Return[]; *)
+	(* If[frameIndex <= 175, Return[]]; *)
+	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
+	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
+	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
+
+	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
+	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
+
+	graph = plotShape3D[faces, heightLevel, progressInLevel];
+
+	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
+
+	If[exportToPov,
+	  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
+	  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
+	  Run[cropCommand];
+	  ,
+	  Export[outputFileName, graph];
+	];
+
+	Print["Saved image to " <> outputFileName];
+
+];
+
+
+exportAnimation[] := Module[
+	{
+		gifFileName,
+		gifFolder,
+		frameIndex,
+		explosionFactor,
+		gifCommand
+	},
+
+	outputFrameFolderName = shapeWithParams <> "_frames";
+
+	outputFrameFolder = FileNameJoin[{outputFolder, outputFrameFolderName}];
+	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
+
+	gifFileName = shapeWithParams;
+	gifFolder = outputFolder;
+	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
+
+	frameIndex = 1;
+	explosionFactors = Table[k * 1.0, 
+		{k, maxExplosionFactor, (-layers + 2)*delayFactor, 
+			-(maxExplosionFactor + (layers - 2)*delayFactor)/(frameCount - 1)}];
+
+	Print["explosionFactors"];
+	Print[explosionFactors];
+
+
+	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
+
+	gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay "
+	(* gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay "  *)
+		<> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
+
+	Print[gifCommand];
+	Run[gifCommand];
+	Print["Saved the animation to " <> gifFolder <> "\\" <> gifFileName <> ".gif"];
+	
+  mp4Command = "ffmpeg -i " <> gifFolder <> "\\" <> gifFileName <> ".gif" 
+      <> " -movflags faststart -pix_fmt yuv420p -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" "
+      <> gifFolder <> "\\" <> gifFileName <> ".mp4";
+
+  mp4FileName = gifFolder <> "\\" <> gifFileName <> ".mp4";
+  If[FileExistsQ[mp4FileName], DeleteFile[mp4FileName]];
+  Print[mp4Command];
+  Run[mp4Command];
+  Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
 shape = "h_7_3";
@@ -321,27 +404,6 @@ Print["Reading data for " <> shape <> " from " <> dataFileName];
 
 faces = Get[dataFileName];
 
-graph = plotShape3D[faces];
+(* exportAnimation[]; *)
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
-
-(* imageSize = {600, 450}; *)
-imageSize = {4, 3}/3 * 720;
-
-imageFolder = "images";
-outputFolder = FileNameJoin[{imageFolder, "great_heptagons"}];
-If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
-outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-
-cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
-
-If[exportToPov,
-  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-  Run[cropCommand];
-  ,
-  Export[outputFileName, graph];
-];
-
-Print["Saved image to " <> outputFileName];
-
+exportFrame[1, 0, 1, "test"];
