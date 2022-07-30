@@ -7,15 +7,17 @@ plotVertices = False;
 highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
-
+edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
 (* plotFaces = True; *)
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-vertexFigure = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
+edgeTopology = True;
+
 
 (* viewAngle = "top"; *)
 viewAngle = "side";
@@ -32,7 +34,8 @@ viewAngle = "side";
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
 (* truncateThreshold = 8; *)
-truncateThreshold = 28;
+truncateThreshold = 18;
+(* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
 
 
@@ -43,6 +46,8 @@ vfRatio = 1/2;
 
 (* always use convexhull *)
 convexHull = True;
+
+If[edgeTopology, vertexFigureTopology = False];
 
 stellationLevel = 3;
 ratio = Tan[stellationLevel Pi/7]/Tan[Pi/7];
@@ -230,9 +235,18 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 		Map[(#[[1]] -> #[[2]])&, roundedVertexFigure],
 		EdgeShapeFunction -> ({FaceForm[Red], Cylinder[#1, 0.03]} &), 
 		VertexShapeFunction -> ({FaceForm[Blue], Sphere[#, 0.06]} &),
-		(* GraphLayout -> "SpringElectricalEmbedding", *)
 		GraphLayout -> "CircularEmbedding",
 		ViewPoint -> {0, 0, 10}
+	];
+
+	roundedEdges = RoundEpsilon[displayEdges];
+	edgeTopologyGraph = GraphPlot3D[
+		Map[(#[[1]] -> #[[2]])&, roundedEdges],		
+		EdgeShapeFunction -> ({FaceForm[Red], Cylinder[#1, 0.03]} &), 
+		VertexShapeFunction -> ({FaceForm[Blue], Sphere[#, 0.06]} &),
+		GraphLayout -> "SpringElectricalEmbedding"
+		(* GraphLayout -> "CircularEmbedding", *)
+		(* ViewPoint -> {0, 0, 10} *)
 	];
 
 	rangeZoom = stellationLevel * 1.5;
@@ -311,7 +325,9 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 		Lighting -> lighting
 	];
 
-	If[vertexFigureTopology, vfTopologyGraph, graph]
+	If[vertexFigureTopology, vfTopologyGraph, 
+		If[edgeTopology, edgeTopologyGraph, graph]
+	]
 ];
 
 shape = "h_7_3";
@@ -323,7 +339,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
+outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
 
 (* imageSize = {600, 450}; *)
 imageSize = {4, 3}/3 * 720;
