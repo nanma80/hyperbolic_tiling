@@ -12,14 +12,14 @@ vertexFigureTopology = False;
 exportToPov = True;
 (* plotVertices = True; *)
 plotFaces = True;
-(* plotEdges = True; *)
+plotEdges = True;
 (* highlightCommonFaces = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-(* viewAngle = "side"; *)
-viewAngle = "";
+viewAngle = "side";
+(* viewAngle = ""; *)
 
 (* 
 	4: 5 lines
@@ -103,55 +103,22 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	{edges, edgeOrders},
 	edges = Map[scale[#, ratio]&, getEdgesFromFace[face]];
 	edgeOrders = Table[Mod[stellationLevel * k, 7]+1, {k, 0, 6}];
-	(* edges[[edgeOrders]] *)
 	Map[#[[1]]&, edges[[edgeOrders]]]
 ];
 
 plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 	{allEdges, edges, allVertices, vertices},
 
-	selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
-	selectedFaces = Union[selectedFaces, -selectedFaces];
-
-	(* heights = Map[Abs[Mean[#][[1]]]&, selectedFaces]; *)
-	(* heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]]; *)
-	(* Print[heightsTally]; *)
-
-(* 
-for truncateThreshold = 28, we have 170 faces, in 8 levels
-
-{{1.812922503760635, 2}, {3.0021462851076754, 14}, {5.674307866050231, 14}, {7.817215073975985, 28}, {13.821507644191334, 28}, {16.493669225133896, 28}, {21.308738014002206, 28}, {22.49796179534925, 28}}
-
- *)
-	(* panning = 0; *)
-	(* selectedFaces = Map[Boost[panning].# &, selectedFaces, {2}]; *)
-
-	(* kleinFaces = Map[getKlein, faces, {2}]; *)
-	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
-
-	stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
-
-	convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
-	stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
-
-	displayStellatedFaces = Map[getHyperboloid, stellatedFaces, {2}];
-	displayFaces = displayStellatedFaces;
-	selectedFaces = stellatedFaces;
-
-	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces. Contributing " <> IntegerString[Length[selectedFaces] * 7 ] <> " edges before dedup."];
-
-	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
-	edges = Union[allEdges, SameTest -> sameEdge];
-
-	Print["There are " <> IntegerString[Length[edges]] <> " distinct edges in total."];
-	displayEdges = Map[getHyperboloid, edges, {2}];
-	allVertices = Flatten[displayEdges, 1];
-	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
-
+	displayFaces = faces;
+	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
+	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
+	Print["There are " <> IntegerString[Length[displayEdges]] <> " edges in total."];
+	vertices = Flatten[displayEdges, 1];
+	
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
 	facesPerVertex = Table[
-		Length[Select[displayStellatedFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
+		Length[Select[displayFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
 	];
 	Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
 	topVertexIndices = Select[Range[Length[facesPerVertex]], facesPerVertex[[#]]==Max[facesPerVertex]&];
@@ -161,20 +128,9 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["topVertex"];
 	Print[topVertex];
 
-(* 	facesPerEdge = Table[
-		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
-	];
+	displayCenteredFaces = Select[displayFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
+	otherFaces = Select[displayFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
 
-	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
-	Print[Tally[facesPerEdge]];
- *)	
-	(* 
-	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
-	*)
-
-	
-	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
-	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
 	allFacesAfterTruncation = otherFaces;
 
 	displayCenteredEdges = Flatten[Map[getEdgesFromFace, displayCenteredFaces], 1];
@@ -205,26 +161,6 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["tally of tallyVertices"];
 	Print[Tally[Map[#[[2]]&, tallyVertices]]];
 
-(* 	For[k=1, k<=Length[truncatedEdges], k++,
-		te = truncatedEdges[[k]];
-		Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}];
-		For[k2=k+1, k2<=Length[truncatedEdges], k2++,
-			te2 = truncatedEdges[[k2]];
-			int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
-			If[Length[int] == 1,
-				comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
-				comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
-				Print[{k, 
-					k2, 
-					HInner[comp1, comp2]//RoundEpsilon, 
-					HNorm[comp1 - comp2]//RoundEpsilon,
-					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon
-				}];
-			];
-		];
-	];
- *)
-
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
 		displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -235,7 +171,6 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 		Map[(#[[1]] -> #[[2]])&, roundedVertexFigure],
 		EdgeShapeFunction -> ({FaceForm[Red], Cylinder[#1, 0.03]} &), 
 		VertexShapeFunction -> ({FaceForm[Blue], Sphere[#, 0.06]} &),
-		(* GraphLayout -> "SpringElectricalEmbedding", *)
 		GraphLayout -> "CircularEmbedding",
 		ViewPoint -> {0, 0, 10}
 	];
@@ -319,7 +254,7 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	If[vertexFigureTopology, vfTopologyGraph, graph]
 ];
 
-exportFrame[heightLevel_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
+exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
 	{},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{frameIndex, heightLevel, progressInLevel}];
@@ -398,12 +333,18 @@ exportAnimation[] := Module[
 ];
 
 shape = "h_7_3";
-
 dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
-Print["Reading data for " <> shape <> " from " <> dataFileName];
-
 faces = Get[dataFileName];
+selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
+selectedFaces = Union[selectedFaces, -selectedFaces];
+displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
+faces = Map[getHyperboloid, stellatedFaces, {2}];
+
+
 
 (* exportAnimation[]; *)
 
-exportFrame[1, 0, 1, "test"];
+exportFrame[faces, 1, 0, 1, "test"];
