@@ -12,14 +12,14 @@ vertexFigureTopology = False;
 exportToPov = True;
 (* plotVertices = True; *)
 plotFaces = True;
-plotEdges = True;
+(* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-vertexFigure = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -237,9 +237,37 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 	];
 
 	If[plotFaces,
+		faceElements = {};
+		For[fid = 1, fid <= Length[displayFaces], fid++,
+			displayFace = displayFaces[[fid]];
+			faceCenter = Mean[displayFace];
+			height = RoundEpsilon[faceCenter[[1]]];
+			faceLevel = getLevelByHeight[height];
+
+			opacity = If[
+				faceLevel < heightLevel,
+				1,
+				If[
+					faceLevel > heightLevel, 
+					0,
+					0.5
+				]
+			];
+
+			If[opacity > 0,
+				AppendTo[faceElements, 
+					{
+						Opacity[opacity], 
+						FaceForm[getColor[faceCenter]], 
+						Polygon[displayFace]
+					}
+				];
+			];
+		];
+
 		elements = Union[
 			elements,
-			Table[{Opacity[1], FaceForm[getColor[Mean[displayFaces[[k]]]]], Polygon[displayFaces[[k]]]}, {k, 1, Length[displayFaces]}]
+			faceElements
 		];
 	];
 
@@ -343,8 +371,22 @@ convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
 stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
 faces = Map[getHyperboloid, stellatedFaces, {2}];
 
-
+heights = Map[RoundEpsilon[Mean[#][[1]]]&, faces];
+heightsTally = Tally[heights];
+uniqueHeights = Map[#[[1]]&, heightsTally];
+sortedHeights = Sort[uniqueHeights, (Abs[#1] < Abs[#2]) || (Abs[#1] == Abs[#2] && #1 < #2) &];
+getLevelByHeight = <||>;
+For[hid = 1, hid <= Length[sortedHeights], hid++,
+	getLevelByHeight[sortedHeights[[hid]]] = hid;
+];
 
 (* exportAnimation[]; *)
 
 exportFrame[faces, 1, 0, 1, "test"];
+exportFrame[faces, 2, 0, 2, "test"];
+exportFrame[faces, 3, 0, 3, "test"];
+exportFrame[faces, 4, 0, 4, "test"];
+exportFrame[faces, 5, 0, 5, "test"];
+exportFrame[faces, 6, 0, 6, "test"];
+exportFrame[faces, 7, 0, 7, "test"];
+exportFrame[faces, 8, 0, 8, "test"];
