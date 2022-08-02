@@ -4,7 +4,6 @@ exportToPov = False;
 plotFaces = False;
 plotEdges = False;
 plotVertices = False;
-highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 
@@ -14,13 +13,12 @@ exportToPov = True;
 (* plotVertices = True; *)
 plotFaces = True;
 (* plotEdges = True; *)
-(* highlightCommonFaces = True; *)
 (* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -60,7 +58,7 @@ imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, "great_heptagons"}];
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 
-shapeWithParams = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""]<> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold];
+shapeWithParams = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold];
 
 
 RoundEpsilon[v_] := Round[v, epsilon];
@@ -92,8 +90,8 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 getHyperboloid[v_] := {-v[[1]], v[[2]], v[[3]]};
-(* getColor[center_] := Hue[ Mod[Arg[ center[[2]] + I center[[3]] ], 2 Pi]/2/Pi, (Tanh[center[[1]]/10 + 0.5 ] + 1)/2, 1]; *)
-getColor[center_] := Red;
+getColor[center_] := Hue[ Mod[Arg[ center[[2]] + I center[[3]] ], 2 Pi]/2/Pi, (Tanh[center[[1]]/10 + 0.5 ] + 1)/2, 1];
+(* getColor[center_] := Red; *)
 
 scale[edge_, ratio_] := Module[
 	{center},
@@ -108,9 +106,10 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	Map[#[[1]]&, edges[[edgeOrders]]]
 ];
 
-plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
-	{allEdges, edges, allVertices, vertices},
+plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
+	{displayFaces, allEdges, edges, allVertices, vertices},
 
+	viewPointRotate = RotationMatrix[2 Pi/frameCount * frameIndex, {1, 0, 0}];
 	displayFaces = faces;
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
 	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -190,7 +189,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices]
+					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices.viewPointRotate]
 				}
 			}
 		];	
@@ -201,10 +200,10 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 			elements,
 			Table[
 			{
-					Opacity[If[highlightCommonFaces, 1, 1]], 
+					Opacity[1],
 					FaceForm[If[plotFaces, White, getColor[Mean[displayEdges[[k]]]]]], 
 					Cylinder[
-						displayEdges[[k]], 
+						displayEdges[[k]].viewPointRotate, 
 						thickness * (1 + 0.00001/(1+ Abs[displayEdges[[k]][[1]][[1]] - displayEdges[[k]][[2]][[1]]] )) 
 					]
 			},
@@ -212,20 +211,6 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 		];
 	];
 
-	If[highlightCommonFaces,
-		highlightColor = White;
-		elements = Union[
-			elements,
-			{
-				{
-					Opacity[If[plotFaces, 1, 0]], FaceForm[highlightColor], Map[Polygon, displayCenteredFaces]
-				},
-				{
-					Opacity[1], FaceForm[highlightColor], Map[Cylinder[#, thickness * 2.2]&, displayCenteredEdges]
-				}
-			}
-		];
-	];
 
 	If[vertexFigure,
 		vfColor = Red;
@@ -233,7 +218,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[vfColor], Map[Cylinder[#, thickness * 2.3]&, truncatedEdges]
+					Opacity[1], FaceForm[vfColor], Map[Cylinder[#, thickness * 2.3]&, truncatedEdges.viewPointRotate]
 				}
 			}
 		];
@@ -265,16 +250,13 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 				]
 			];
 
-			If[opacity < 1 && opacity > 0, Print[opacity]];
-
 			If[opacity > 0,
 				color = getColor[faceCenter];
-				(* Print[{opacity, color, shiftedDisplayFace}]; *)
 				AppendTo[faceElements, 
 					{
 						Opacity[opacity], 
-						FaceForm[color], 
-						Polygon[displayFace]
+						FaceForm[color],
+						Polygon[displayFace.viewPointRotate]
 					}
 				];
 			];
@@ -310,7 +292,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
 
-	graph = plotShape3D[faces, heightLevel, progressInLevel];
+	graph = plotShape3D[faces, heightLevel, progressInLevel, frameIndex];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
@@ -367,17 +349,15 @@ exportAnimation[] := Module[
 
 	frameCount = (Length[sortedHeights] - 2) * frameCountPerLevel;
 
-	For[levelId = 3, levelId <= 3 && levelId <= Length[sortedHeights], levelId++,
-		For[progressId = 90, progressId <= 94 && progressId <= frameCountPerLevel, progressId++,
+	For[levelId = 3, levelId <= Length[sortedHeights], levelId++,
+		For[progressId = 1, progressId <= frameCountPerLevel, progressId++,
 			frameIndex = (levelId - 3) * frameCountPerLevel + progressId;
 			Print["exportFrame"];
 			Print[{levelId, progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
 
-			exportFrame[faces, levelId, 90/frameCountPerLevel, frameIndex, outputFrameFolderName];
+			exportFrame[faces, levelId, progressId/frameCountPerLevel, frameIndex, outputFrameFolderName];
 		];
 	];
-
-	Exit[];
 	
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
