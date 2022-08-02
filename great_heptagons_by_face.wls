@@ -7,7 +7,7 @@ plotVertices = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 
-frameCountPerLevel = 100;
+frameCountPerLevel = 150;
 
 exportToPov = True;
 (* plotVertices = True; *)
@@ -31,7 +31,7 @@ viewAngle = "";
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
 (* truncateThreshold = 8; *)
-truncateThreshold = 8;
+truncateThreshold = 18;
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
 
@@ -109,7 +109,7 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 	{displayFaces, allEdges, edges, allVertices, vertices},
 
-	viewPointRotate = RotationMatrix[2 Pi/frameCount * frameIndex, {1, 0, 0}];
+	viewPointRotate = RotationMatrix[-2 Pi/frameCount * frameIndex, {1, 0, 0}];
 	displayFaces = faces;
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
 	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -179,7 +179,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 	rangeZoom = stellationLevel * 1.5;
 	lighting = {{"Point", White, {50, -50, 50}}};
 	(* range = If[viewAngle == "side", 0.8, 3] * rangeZoom; *)
-	range = If[viewAngle == "side", 0.8, 3] * rangeZoom/2;
+	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-2, 0, 0};
 
