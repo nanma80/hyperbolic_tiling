@@ -32,6 +32,7 @@ viewAngle = "";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
+(* truncateThreshold = 8; *)
 truncateThreshold = 8;
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
@@ -245,7 +246,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 			height = RoundEpsilon[faceCenter[[1]]];
 			faceLevel = getLevelByHeight[height];
 			faceCountSameHeight = getFaceCountByHeight[height];
-			normalizedArg = Mod[Arg[ faceCenter[[2]] - I faceCenter[[3]] ] + 2 Pi/7, 2 Pi]/2/Pi * 0.7;
+			normalizedArg = Mod[Arg[ faceCenter[[2]] - I faceCenter[[3]] ] + 2 Pi/7, 2 Pi]/2/Pi * 0.5;
 
 			opacity = If[
 				faceLevel < heightLevel,
@@ -255,8 +256,8 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 					0,
 					If[progressInLevel < normalizedArg, 
 						0,
-						If[progressInLevel < normalizedArg + 0.2, 
-							(progressInLevel - normalizedArg)/0.2,
+						If[progressInLevel < normalizedArg + 0.3, 
+							(progressInLevel - normalizedArg)/0.3,
 							1
 						]
 					]
