@@ -8,6 +8,7 @@ highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 
+frameCountPerLevel = 100;
 
 exportToPov = True;
 (* plotVertices = True; *)
@@ -243,14 +244,22 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 			faceCenter = Mean[displayFace];
 			height = RoundEpsilon[faceCenter[[1]]];
 			faceLevel = getLevelByHeight[height];
+			faceCountSameHeight = getFaceCountByHeight[height];
+			normalizedArg = Mod[Arg[ faceCenter[[2]] - I faceCenter[[3]] ] + 2 Pi/7, 2 Pi]/2/Pi * 0.7;
 
 			opacity = If[
 				faceLevel < heightLevel,
 				1,
 				If[
-					faceLevel > heightLevel, 
+					faceLevel > heightLevel,
 					0,
-					0.5
+					If[progressInLevel < normalizedArg, 
+						0,
+						If[progressInLevel < normalizedArg + 0.2, 
+							(progressInLevel - normalizedArg)/0.2,
+							1
+						]
+					]
 				]
 			];
 
@@ -289,8 +298,8 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 	(* Return[]; *)
 	(* If[frameIndex <= 175, Return[]]; *)
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
-	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
-	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
+	(* outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}]; *)
+	(* If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]]; *)
 
 	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
@@ -330,19 +339,43 @@ exportAnimation[] := Module[
 	gifFolder = outputFolder;
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
-	frameIndex = 1;
-	explosionFactors = Table[k * 1.0, 
-		{k, maxExplosionFactor, (-layers + 2)*delayFactor, 
-			-(maxExplosionFactor + (layers - 2)*delayFactor)/(frameCount - 1)}];
+	shape = "h_7_3";
+	dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
+	faces = Get[dataFileName];
+	selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
+	selectedFaces = Union[selectedFaces, -selectedFaces];
+	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+	stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+	convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+	stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
+	faces = Map[getHyperboloid, stellatedFaces, {2}];
 
-	Print["explosionFactors"];
-	Print[explosionFactors];
+	heights = Map[RoundEpsilon[Mean[#][[1]]]&, faces];
+	heightsTally = Tally[heights];
+	uniqueHeights = Map[#[[1]]&, heightsTally];
+	sortedHeights = Sort[uniqueHeights, (Abs[#1] < Abs[#2]) || (Abs[#1] == Abs[#2] && #1 < #2) &];
+	getLevelByHeight = <||>;
+	getFaceCountByHeight = <||>;
+	For[hid = 1, hid <= Length[sortedHeights], hid++,
+		getLevelByHeight[sortedHeights[[hid]]] = hid;
+		getFaceCountByHeight[heightsTally[[hid]][[1]] ] = heightsTally[[hid]][[2]];
+	];
 
+	frameCount = (Length[sortedHeights] - 2) * frameCountPerLevel;
 
+	For[levelId = 3, levelId <= Length[sortedHeights], levelId++,
+		For[progressId = 1, progressId <= frameCountPerLevel, progressId++,
+			frameIndex = (levelId - 3) * frameCountPerLevel + progressId;
+			Print["exportFrame"];
+			Print[{levelId, progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
+			exportFrame[faces, levelId, progressId/frameCountPerLevel, frameIndex, outputFrameFolder];
+		];
+	];
+	
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
-	gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay "
-	(* gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay "  *)
+	(* gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay " *)
+	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " 
 		<> IntegerString[delay] <> " -dispose 2 " <> outputFrameFolder <> "\\frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
 
 	Print[gifCommand];
@@ -360,29 +393,10 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];
 ];
 
-shape = "h_7_3";
-dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
-faces = Get[dataFileName];
-selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
-selectedFaces = Union[selectedFaces, -selectedFaces];
-displayFaces = Map[getHyperboloid, selectedFaces, {2}];
-stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
-convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
-stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
-faces = Map[getHyperboloid, stellatedFaces, {2}];
 
-heights = Map[RoundEpsilon[Mean[#][[1]]]&, faces];
-heightsTally = Tally[heights];
-uniqueHeights = Map[#[[1]]&, heightsTally];
-sortedHeights = Sort[uniqueHeights, (Abs[#1] < Abs[#2]) || (Abs[#1] == Abs[#2] && #1 < #2) &];
-getLevelByHeight = <||>;
-For[hid = 1, hid <= Length[sortedHeights], hid++,
-	getLevelByHeight[sortedHeights[[hid]]] = hid;
-];
+exportAnimation[];
 
-(* exportAnimation[]; *)
-
-exportFrame[faces, 1, 0, 1, "test"];
+(* exportFrame[faces, 1, 0, 1, "test"];
 exportFrame[faces, 2, 0, 2, "test"];
 exportFrame[faces, 3, 0, 3, "test"];
 exportFrame[faces, 4, 0, 4, "test"];
@@ -390,3 +404,8 @@ exportFrame[faces, 5, 0, 5, "test"];
 exportFrame[faces, 6, 0, 6, "test"];
 exportFrame[faces, 7, 0, 7, "test"];
 exportFrame[faces, 8, 0, 8, "test"];
+ *)
+
+
+(* Table[exportFrame[faces, 5, k, 100 + 10 k, "test"], {k, 0, 1, 1/10}]; *)
+
