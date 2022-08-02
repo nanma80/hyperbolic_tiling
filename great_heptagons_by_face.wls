@@ -19,8 +19,8 @@ plotFaces = True;
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-(* viewAngle = "side"; *)
-viewAngle = "";
+viewAngle = "side";
+(* viewAngle = ""; *)
 
 (* 
 	4: 5 lines
@@ -92,8 +92,8 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 getHyperboloid[v_] := {-v[[1]], v[[2]], v[[3]]};
-getColor[center_] := Hue[ Mod[Arg[ center[[2]] + I center[[3]] ], 2 Pi]/2/Pi, (Tanh[center[[1]]/10 + 0.5 ] + 1)/2 , 1];
-
+(* getColor[center_] := Hue[ Mod[Arg[ center[[2]] + I center[[3]] ], 2 Pi]/2/Pi, (Tanh[center[[1]]/10 + 0.5 ] + 1)/2, 1]; *)
+getColor[center_] := Red;
 
 scale[edge_, ratio_] := Module[
 	{center},
@@ -179,7 +179,8 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 
 	rangeZoom = stellationLevel * 1.5;
 	lighting = {{"Point", White, {50, -50, 50}}};
-	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
+	(* range = If[viewAngle == "side", 0.8, 3] * rangeZoom; *)
+	range = If[viewAngle == "side", 0.8, 3] * rangeZoom/2;
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-2, 0, 0};
 
@@ -264,11 +265,15 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 				]
 			];
 
+			If[opacity < 1 && opacity > 0, Print[opacity]];
+
 			If[opacity > 0,
+				color = getColor[faceCenter];
+				(* Print[{opacity, color, shiftedDisplayFace}]; *)
 				AppendTo[faceElements, 
 					{
 						Opacity[opacity], 
-						FaceForm[getColor[faceCenter]], 
+						FaceForm[color], 
 						Polygon[displayFace]
 					}
 				];
@@ -283,7 +288,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {30, -50, 50}]],
+		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*1000, {30, -50, 50}*80]],
 		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
@@ -293,14 +298,14 @@ plotShape3D[faces_, heightLevel_, progressInLevel_] := Module[
 ];
 
 exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
-	{},
+	{outputFrameFolder},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
 	Print[{frameIndex, heightLevel, progressInLevel}];
 	(* Return[]; *)
 	(* If[frameIndex <= 175, Return[]]; *)
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
-	(* outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}]; *)
-	(* If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]]; *)
+	outputFrameFolder = FileNameJoin[{outputFolder, outputFolderName}];
+	If[!DirectoryQ[outputFrameFolder], CreateDirectory[outputFrameFolder]];
 
 	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
@@ -318,9 +323,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 	];
 
 	Print["Saved image to " <> outputFileName];
-
 ];
-
 
 exportAnimation[] := Module[
 	{
@@ -364,14 +367,17 @@ exportAnimation[] := Module[
 
 	frameCount = (Length[sortedHeights] - 2) * frameCountPerLevel;
 
-	For[levelId = 3, levelId <= Length[sortedHeights], levelId++,
-		For[progressId = 1, progressId <= frameCountPerLevel, progressId++,
+	For[levelId = 3, levelId <= 3 && levelId <= Length[sortedHeights], levelId++,
+		For[progressId = 90, progressId <= 94 && progressId <= frameCountPerLevel, progressId++,
 			frameIndex = (levelId - 3) * frameCountPerLevel + progressId;
 			Print["exportFrame"];
 			Print[{levelId, progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
-			exportFrame[faces, levelId, progressId/frameCountPerLevel, frameIndex, outputFrameFolder];
+
+			exportFrame[faces, levelId, 90/frameCountPerLevel, frameIndex, outputFrameFolderName];
 		];
 	];
+
+	Exit[];
 	
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
 
@@ -407,6 +413,26 @@ exportFrame[faces, 7, 0, 7, "test"];
 exportFrame[faces, 8, 0, 8, "test"];
  *)
 
+(* shape = "h_7_3";
+dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
+faces = Get[dataFileName];
+selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
+selectedFaces = Union[selectedFaces, -selectedFaces];
+displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
+faces = Map[getHyperboloid, stellatedFaces, {2}];
 
-(* Table[exportFrame[faces, 5, k, 100 + 10 k, "test"], {k, 0, 1, 1/10}]; *)
-
+heights = Map[RoundEpsilon[Mean[#][[1]]]&, faces];
+heightsTally = Tally[heights];
+uniqueHeights = Map[#[[1]]&, heightsTally];
+sortedHeights = Sort[uniqueHeights, (Abs[#1] < Abs[#2]) || (Abs[#1] == Abs[#2] && #1 < #2) &];
+getLevelByHeight = <||>;
+getFaceCountByHeight = <||>;
+For[hid = 1, hid <= Length[sortedHeights], hid++,
+	getLevelByHeight[sortedHeights[[hid]]] = hid;
+	getFaceCountByHeight[heightsTally[[hid]][[1]] ] = heightsTally[[hid]][[2]];
+];
+Table[exportFrame[faces, 5, k, 200 + 100 k, "test"], {k, 0/100, 5/100, 1/100}];
+ *)
