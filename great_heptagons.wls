@@ -34,8 +34,9 @@ viewAngle = "side";
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
 (* truncateThreshold = 8; *)
-truncateThreshold = 18;
+(* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
+truncateThreshold = 38;
 (* truncateThreshold = 58; *)
 
 
@@ -161,18 +162,36 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["topVertex"];
 	Print[topVertex];
 
-(* 	facesPerEdge = Table[
+	facesPerEdge = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
 	];
 
 	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
 	Print[Tally[facesPerEdge]];
- *)	
+	
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
+	singleEdges = {};
+	For[eid = 1, eid <= Length[displayEdges], eid++,
+		If[facesPerEdge[[eid]] == 1,
+			AppendTo[singleEdges, displayEdges[[eid]]];
+		];
+	];
 
-	
+	singleEdgeLengths = Map[Norm[#[[1]] - #[[2]]]&, singleEdges];
+	singleEdgeCenters = Map[Mean, singleEdges];
+	singleEdgeEnds = Flatten[singleEdges, 1];
+
+	Print["min length, min center norm, min center z, min ends norm, min ends z"];
+	Print[Min[singleEdgeLengths]];
+	Print[Min[Map[Norm, singleEdgeCenters]]];
+	Print[Min[Map[Abs[#[[1]]]&, singleEdgeCenters]]];
+	Print[Min[Map[Norm, singleEdgeEnds]]];
+	Print[Min[Map[Abs[#[[1]]]&, singleEdgeEnds]]];
+
+	Exit[];
+
 	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
 	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
 	allFacesAfterTruncation = otherFaces;
