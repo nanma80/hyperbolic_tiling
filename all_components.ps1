@@ -1,11 +1,2 @@
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 1
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 2
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 3
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 4
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 5
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 6
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 7
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 8
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 9
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 10
-wolframscript.exe .\projective_honeycomb_compound.wls 3 5 3 11
+wolframscript.exe .\great_heptagons_by_face.wls
+wolframscript.exe .\great_heptagons_vertex_figure.wls

@@ -7,7 +7,7 @@ plotVertices = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 
-frameCountPerLevel = 5;
+frameCountPerLevel = 200;
 
 exportToPov = True;
 (* plotVertices = True; *)
@@ -31,8 +31,8 @@ viewAngle = "transition";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-(* truncateThreshold = 8; *)
-truncateThreshold = 14;
+truncateThreshold = 8;
+(* truncateThreshold = 14; *)
 (* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
@@ -112,6 +112,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 	{displayFaces, allEdges, edges, allVertices, vertices},
 
 	vfRatio = progressInLevel;
+	viewPointTilt = RotationMatrix[-Pi/6, {0, -1, 1}];
 	viewPointRotate = RotationMatrix[0, {1, 0, 0}];
 	displayFaces = faces;
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
@@ -184,7 +185,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
 	If[viewAngle == "transition", range = rangeZoom * (3 * (1 - progressInLevel) + progressInLevel * 0.8)];
 	thickness = range / 80.0 / rangeZoom;
-	viewCenter = {-2, 0, 0};
+	viewCenter = {topVertex[[1]], 0, 0}.viewPointTilt;
 
 	elements = {};
 	If[plotVertices,
@@ -192,7 +193,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices.viewPointRotate]
+					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices.viewPointRotate.viewPointTilt]
 				}
 			}
 		];	
@@ -206,7 +207,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 					Opacity[1],
 					FaceForm[If[plotFaces, White, getColor[Mean[displayEdges[[k]]]]]], 
 					Cylinder[
-						displayEdges[[k]].viewPointRotate, 
+						displayEdges[[k]].viewPointRotate.viewPointTilt, 
 						thickness * (1 + 0.00001/(1+ Abs[displayEdges[[k]][[1]][[1]] - displayEdges[[k]][[2]][[1]]] )) 
 					]
 			},
@@ -221,7 +222,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[vfColor], Map[Cylinder[#, thickness * 2.3]&, truncatedEdges.viewPointRotate]
+					Opacity[1], FaceForm[vfColor], Map[Cylinder[#, thickness * 2.3]&, truncatedEdges.viewPointRotate.viewPointTilt]
 				}
 			}
 		];
@@ -239,7 +240,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 					{
 						Opacity[opacity], 
 						FaceForm[color],
-						Polygon[displayFace.viewPointRotate]
+						Polygon[displayFace.viewPointRotate.viewPointTilt]
 					}
 				];
 			];
@@ -252,11 +253,12 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 	];
 
 	viewPoint = If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*1000, {30, -50, 50}*80]];
-	If[viewAngle == "transition", viewPoint = {0, -2.52, 3.165}*1000 * progressInLevel + (1- progressInLevel) * {30, -50, 50}*80];
+	If[viewAngle == "transition", viewPoint = {0, topVertex[[2]], topVertex[[3]]} * 1000 * progressInLevel + (1- progressInLevel) * {30, -50, 50}*80];
+	Print[{progressInLevel, viewPoint}];
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> viewPoint,
-		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
+		ViewPoint -> viewPoint.viewPointTilt,
+		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}].viewPointTilt,
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
 	];
