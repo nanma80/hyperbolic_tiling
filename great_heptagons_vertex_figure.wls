@@ -7,18 +7,19 @@ plotVertices = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 
-frameCountPerLevel = 150;
+frameCountPerLevel = 200;
 
 exportToPov = True;
 (* plotVertices = True; *)
 plotFaces = True;
 (* plotEdges = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
 (* viewAngle = "side"; *)
-viewAngle = "";
+(* viewAngle = ""; *)
+viewAngle = "transition";
 
 (* 
 	4: 5 lines
@@ -107,11 +108,12 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	Map[#[[1]]&, edges[[edgeOrders]]]
 ];
 
-plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
+plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 	{displayFaces, allEdges, edges, allVertices, vertices},
 
+	vfRatio = progressInLevel;
 	viewPointTilt = RotationMatrix[-Pi/6, {0, -1, 1}];
-	viewPointRotate = RotationMatrix[-2 Pi/frameCount * frameIndex, {1, 0, 0}];
+	viewPointRotate = RotationMatrix[0, {1, 0, 0}];
 	displayFaces = faces;
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
 	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -180,8 +182,8 @@ plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 
 	rangeZoom = stellationLevel * 1.5;
 	lighting = {{"Point", White, {50, -50, 50}}};
-	(* range = If[viewAngle == "side", 0.8, 3] * rangeZoom; *)
 	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
+	If[viewAngle == "transition", range = rangeZoom * (3 * (1 - progressInLevel) + progressInLevel * 0.8)];
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {topVertex[[1]], 0, 0}.viewPointTilt;
 
@@ -231,27 +233,7 @@ plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 		For[fid = 1, fid <= Length[displayFaces], fid++,
 			displayFace = displayFaces[[fid]];
 			faceCenter = Mean[displayFace];
-			height = RoundEpsilon[faceCenter[[1]]];
-			faceLevel = getLevelByHeight[height];
-			faceCountSameHeight = getFaceCountByHeight[height];
-			normalizedArg = Mod[Arg[ faceCenter[[2]] - I faceCenter[[3]] ] + 2 Pi/7, 2 Pi]/2/Pi * 0.5;
-
-			opacity = If[
-				faceLevel < heightLevel,
-				1,
-				If[
-					faceLevel > heightLevel,
-					0,
-					If[progressInLevel < normalizedArg, 
-						0,
-						If[progressInLevel < normalizedArg + 0.3, 
-							(progressInLevel - normalizedArg)/0.3,
-							1
-						]
-					]
-				]
-			];
-
+			opacity = 1 - progressInLevel;
 			If[opacity > 0,
 				color = getColor[faceCenter];
 				AppendTo[faceElements, 
@@ -270,9 +252,12 @@ plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 		];
 	];
 
+	viewPoint = If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*1000, {30, -50, 50}*80]];
+	If[viewAngle == "transition", viewPoint = {0, topVertex[[2]], topVertex[[3]]} * 1000 * progressInLevel + (1- progressInLevel) * {30, -50, 50}*80];
+	Print[{progressInLevel, viewPoint}];
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, topVertex[[2]], topVertex[[3]]}*1000, {30, -50, 50}*80]].viewPointTilt,
+		ViewPoint -> viewPoint.viewPointTilt,
 		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}].viewPointTilt,
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
@@ -281,10 +266,10 @@ plotShape3D[faces_, heightLevel_, progressInLevel_, frameIndex_] := Module[
 	If[vertexFigureTopology, vfTopologyGraph, graph]
 ];
 
-exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
+exportFrame[faces_, progressInLevel_, frameIndex_, outputFolderName_] := Module[
 	{outputFrameFolder},
 	Print[DateString["ISODateTime"] <> " Generating frame for:"];
-	Print[{frameIndex, heightLevel, progressInLevel}];
+	Print[{frameIndex, progressInLevel}];
 	(* Return[]; *)
 	(* If[frameIndex <= 175, Return[]]; *)
 	(* If[Mod[frameIndex, 2] != frameIndexMod, Return[]]; *)
@@ -294,7 +279,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 	outputFileName = "frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFrameFolder, outputFileName}];
 
-	graph = plotShape3D[faces, heightLevel, progressInLevel, frameIndex];
+	graph = plotShape3D[faces, progressInLevel, frameIndex];
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
@@ -349,16 +334,17 @@ exportAnimation[] := Module[
 		getFaceCountByHeight[heightsTally[[hid]][[1]] ] = heightsTally[[hid]][[2]];
 	];
 
-	frameCount = (Length[sortedHeights] - 2) * frameCountPerLevel;
+	Print["sortedHeights length:"];
+	Print[Length[sortedHeights]];
 
-	For[levelId = 3, levelId <= Length[sortedHeights], levelId++,
-		For[progressId = 1, progressId <= frameCountPerLevel, progressId++,
-			frameIndex = (levelId - 3) * frameCountPerLevel + progressId;
-			Print["exportFrame"];
-			Print[{levelId, progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
+	frameCount = frameCountPerLevel;
 
-			exportFrame[faces, levelId, progressId/frameCountPerLevel, frameIndex, outputFrameFolderName];
-		];
+	For[progressId = 0, progressId <= frameCountPerLevel, progressId++,
+		frameIndex = progressId;
+		Print["exportFrame"];
+		Print[{progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
+
+		exportFrame[faces, progressId/frameCountPerLevel, frameIndex, outputFrameFolderName];
 	];
 	
 	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
