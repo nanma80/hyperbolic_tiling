@@ -17,8 +17,9 @@ vertexFigure = True;
 (* vertexFigureTopology = True; *)
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
+(* viewAngle = "side"; *)
 (* viewAngle = ""; *)
+viewAngle = "transition";
 
 (* 
 	4: 5 lines
@@ -28,9 +29,10 @@ viewAngle = "side";
 *)
 (* truncateThreshold = 2; *)
 (* truncateThreshold = 3; *)
-truncateThreshold = 4;
+(* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
 (* truncateThreshold = 8; *)
+truncateThreshold = 14;
 (* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 58; *)
@@ -180,6 +182,7 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 	rangeZoom = stellationLevel * 1.5;
 	lighting = {{"Point", White, {50, -50, 50}}};
 	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
+	If[viewAngle == "transition", range = rangeZoom * (3 * (1 - progressInLevel) + progressInLevel * 0.8)];
 	thickness = range / 80.0 / rangeZoom;
 	viewCenter = {-2, 0, 0};
 
@@ -248,9 +251,11 @@ plotShape3D[faces_, progressInLevel_, frameIndex_] := Module[
 		];
 	];
 
+	viewPoint = If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*1000, {30, -50, 50}*80]];
+	If[viewAngle == "transition", viewPoint = {0, -2.52, 3.165}*1000 * progressInLevel + (1- progressInLevel) * {30, -50, 50}*80];
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*1000, {30, -50, 50}*80]],
+		ViewPoint -> viewPoint,
 		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
@@ -327,9 +332,12 @@ exportAnimation[] := Module[
 		getFaceCountByHeight[heightsTally[[hid]][[1]] ] = heightsTally[[hid]][[2]];
 	];
 
+	Print["sortedHeights length:"];
+	Print[Length[sortedHeights]];
+
 	frameCount = frameCountPerLevel;
 
-	For[progressId = 1, progressId <= frameCountPerLevel, progressId++,
+	For[progressId = 0, progressId <= frameCountPerLevel, progressId++,
 		frameIndex = progressId;
 		Print["exportFrame"];
 		Print[{progressId, N[progressId/frameCountPerLevel], frameIndex, frameCount}];
