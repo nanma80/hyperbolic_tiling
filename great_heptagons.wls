@@ -36,8 +36,8 @@ viewAngle = "side";
 (* truncateThreshold = 8; *)
 (* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
-truncateThreshold = 38;
-(* truncateThreshold = 58; *)
+(* truncateThreshold = 38; *)
+truncateThreshold = 58;
 
 
 (* vfRatio = 1/2: connecting midpoints. = 1: connecting neighboring points of topVertex *)
@@ -114,9 +114,9 @@ plotShape3D[faces_] := Module[
 	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
 	selectedFaces = Union[selectedFaces, -selectedFaces];
 
-	(* heights = Map[Abs[Mean[#][[1]]]&, selectedFaces]; *)
-	(* heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]]; *)
-	(* Print[heightsTally]; *)
+	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print[heightsTally];
 
 (* 
 for truncateThreshold = 28, we have 170 faces, in 8 levels
@@ -189,6 +189,20 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print[Min[Map[Abs[#[[1]]]&, singleEdgeCenters]]];
 	Print[Min[Map[Norm, singleEdgeEnds]]];
 	Print[Min[Map[Abs[#[[1]]]&, singleEdgeEnds]]];
+
+	facesWithSingleEdges = {};
+	For[fid = 1, fid<=Length[displayFaces], fid++,
+		edgesInFace = getEdgesFromFace[displayFaces[[fid]]];
+		If[Length[Intersection[edgesInFace, singleEdges, SameTest -> sameEdge]] > 0,
+			AppendTo[facesWithSingleEdges, displayFaces[[fid]]];
+		];
+	];
+
+	Print["faces with single edges"];
+	Print[Length[facesWithSingleEdges]];
+	heights = Map[Abs[Mean[#][[1]]]&, facesWithSingleEdges];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print[heightsTally];
 
 	Exit[];
 
