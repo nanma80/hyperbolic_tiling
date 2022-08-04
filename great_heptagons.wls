@@ -11,17 +11,17 @@ edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
 (* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
-edgeTopology = True;
+(* edgeTopology = True; *)
 
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -33,11 +33,11 @@ viewAngle = "side";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-(* truncateThreshold = 8; *)
+truncateThreshold = 8;
 (* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
-truncateThreshold = 58;
+(* truncateThreshold = 58; *)
 
 
 (* vfRatio = 1/2: connecting midpoints. = 1: connecting neighboring points of topVertex *)
@@ -114,10 +114,10 @@ plotShape3D[faces_] := Module[
 	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
 	selectedFaces = Union[selectedFaces, -selectedFaces];
 
-	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
+(* 	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
 	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
 	Print[heightsTally];
-
+ *)
 (* 
 for truncateThreshold = 28, we have 170 faces, in 8 levels
 
@@ -162,17 +162,17 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["topVertex"];
 	Print[topVertex];
 
-	facesPerEdge = Table[
+(* 	facesPerEdge = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
 	];
 
 	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
 	Print[Tally[facesPerEdge]];
-	
+ *)	
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
-	singleEdges = {};
+(* 	singleEdges = {};
 	For[eid = 1, eid <= Length[displayEdges], eid++,
 		If[facesPerEdge[[eid]] == 1,
 			AppendTo[singleEdges, displayEdges[[eid]]];
@@ -204,7 +204,7 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
 	Print[heightsTally];
 
-	Exit[];
+	Exit[]; *)
 
 	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
 	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
