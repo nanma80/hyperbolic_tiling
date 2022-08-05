@@ -240,23 +240,31 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 
 (* 	For[k=1, k<=Length[truncatedEdges], k++,
 		te = truncatedEdges[[k]];
-		Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}];
+		(* Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}]; *)
 		For[k2=k+1, k2<=Length[truncatedEdges], k2++,
 			te2 = truncatedEdges[[k2]];
 			int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
 			If[Length[int] == 1,
 				comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
 				comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
+				d12 = comp1 - comp2;
+				d11 = comp1 - int[[1]];
+				d22 = comp2 - int[[1]];
+				normalizedInner1 = HInner[d12, d11]/HNorm[d12]/HNorm[d11];
 				Print[{k, 
 					k2, 
 					HInner[comp1, comp2]//RoundEpsilon, 
 					HNorm[comp1 - comp2]//RoundEpsilon,
-					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon
+					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon,
+					normalizedInner1,
+					ArcCos[normalizedInner1]//RoundEpsilon,
+					(Pi/ArcCos[normalizedInner1])//RoundEpsilon
 				}];
 			];
 		];
 	];
- *)
+
+	Exit[]; *)
 
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
