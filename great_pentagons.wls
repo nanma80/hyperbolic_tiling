@@ -8,20 +8,23 @@ highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 edgeTopology = False;
+onlyOneConnectedComponent = False;
+otherConnectedComponent = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-vertexFigure = True;
-vertexFigureTopology = True;
+(* vertexFigure = True; *)
+(* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
-
+onlyOneConnectedComponent = True;
+otherConnectedComponent = True;
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -33,8 +36,8 @@ viewAngle = "side";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-truncateThreshold = 8;
-(* truncateThreshold = 18; *)
+(* truncateThreshold = 8; *)
+truncateThreshold = 18;
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
 (* truncateThreshold = 58; *)
@@ -114,12 +117,6 @@ plotShape3D[faces_] := Module[
 	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
 	selectedFaces = Union[selectedFaces, -selectedFaces];
 
-	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
-	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
-	Print["heights of face centers"];
-	Print[heightsTally];
-	Print[Length[heightsTally]];
-
 (* 
 for truncateThreshold = 28, we have 170 faces, in 8 levels
 
@@ -138,17 +135,50 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
 
 	displayStellatedFaces = Map[getHyperboloid, stellatedFaces, {2}];
-	displayFaces = displayStellatedFaces;
-	selectedFaces = stellatedFaces;
 
-	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces. Contributing " <> IntegerString[Length[selectedFaces] * 5 ] <> " edges before dedup."];
+	heights = Map[Abs[Mean[#][[1]]]&, displayStellatedFaces];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print["heights of face centers"];
+	Print[heightsTally];
+	Print[Length[heightsTally]];
 
-	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
+	If[onlyOneConnectedComponent,
+		topVertexFaceId = Select[Range[Length[displayStellatedFaces]], Mean[displayStellatedFaces[[#]]][[1]] < -1 && Mean[ displayStellatedFaces[[#]] ][[1]] > -2 &][[1]];
+		Print[topVertexFaceId];
+
+		edgesByFace = Map[getEdgesFromFace, displayStellatedFaces];
+
+		faceOverlapOnEdge[id1_, id2_] := Length[Intersection[edgesByFace[[id1]], edgesByFace[[id2]], SameTest -> sameEdge]] > 0;
+
+		ccs = ConnectedComponents[RelationGraph[faceOverlapOnEdge, Range[Length[edgesByFace]]]];
+		Print["ConnectedComponents count"];
+		Print[Map[Length, ccs]];
+
+		ccsToKeep = If[otherConnectedComponent,
+			Select[ccs, Length[Intersection[#, {topVertexFaceId}] ] == 0 &][[1]],
+			Select[ccs, Length[Intersection[#, {topVertexFaceId}] ] > 0 &][[1]]
+		];
+
+		Print["Filter faces from " <> IntegerString[Length[displayStellatedFaces]] <> " to " <> IntegerString[Length[ccsToKeep ]]];
+		displayStellatedFaces = displayStellatedFaces[[ccsToKeep]];
+
+		heights = Map[Abs[Mean[#][[1]]]&, displayStellatedFaces];
+		heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+		Print["heights of face centers after filtering"];
+		Print[heightsTally];
+		Print[Length[heightsTally]];
+
+		displayFaces = displayStellatedFaces;
+	];
+
+	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces. Contributing " <> IntegerString[Length[displayFaces] * 5 ] <> " edges before dedup."];
+
+	allEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
 	edges = Union[allEdges, SameTest -> sameEdge];
+	displayEdges = edges;
 
 	Print["There are " <> IntegerString[Length[edges]] <> " distinct edges in total."];
-	displayEdges = Map[getHyperboloid, edges, {2}];
-	allVertices = Flatten[displayEdges, 1];
+	allVertices = Flatten[edges, 1];
 	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
 
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
@@ -156,6 +186,7 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	facesPerVertex = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
 	];
+
 	Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
 	topVertexIndices = Select[Range[Length[facesPerVertex]], facesPerVertex[[#]]==Max[facesPerVertex]&];
 
@@ -164,13 +195,14 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["topVertex"];
 	Print[topVertex];
 
+(* optional analysis: *)
 (* 	facesPerEdge = Table[
-		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
+		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {edges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[edges]}
 	];
 
 	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
-	Print[Tally[facesPerEdge]]; *)
-	
+	Print[Tally[facesPerEdge]];
+ *)	
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
@@ -373,7 +405,7 @@ faces = Get[dataFileName];
 
 graph = plotShape3D[faces];
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_pentagons_" <> IntegerString[truncateThreshold] <> ".png";
+outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> If[onlyOneConnectedComponent, If[otherConnectedComponent, "2cc_", "1cc_"], ""] <> "great_pentagons_" <> IntegerString[truncateThreshold] <> ".png";
 
 (* imageSize = {600, 450}; *)
 imageSize = {4, 3}/3 * 720;

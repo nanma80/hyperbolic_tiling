@@ -11,17 +11,17 @@ edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
-(* highlightCommonFaces = True; *)
-vertexFigure = True;
+highlightCommonFaces = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
 
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 	4: 5 lines
@@ -360,7 +360,7 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {50, -50, 50}]],
+		ViewPoint -> If[viewAngle == "top", {1000, 0, 0}, If[viewAngle == "side", {0, -2.52, 3.165}*100, {30, -50, 50}]],
 		ViewVertical -> If[viewAngle == "top", {0, 1, 0}, {1, 0, 0}],
 		PlotRange -> {{viewCenter[[1]]-range, viewCenter[[1]]+range}, {viewCenter[[2]]-range, viewCenter[[2]]+range}, {viewCenter[[3]]-range, viewCenter[[3]]+range}},
 		Lighting -> lighting
