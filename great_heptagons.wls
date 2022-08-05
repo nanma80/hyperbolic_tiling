@@ -11,17 +11,17 @@ edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-plotFaces = True;
+(* plotFaces = True; *)
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
 
 
 (* viewAngle = "top"; *)
-(* viewAngle = "side"; *)
-viewAngle = "";
+viewAngle = "side";
+(* viewAngle = ""; *)
 
 (* 
 	4: 5 lines
@@ -33,8 +33,8 @@ viewAngle = "";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-truncateThreshold = 8;
-(* truncateThreshold = 18; *)
+(* truncateThreshold = 8; *)
+truncateThreshold = 18;
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
 (* truncateThreshold = 58; *)
