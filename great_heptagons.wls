@@ -14,9 +14,9 @@ exportToPov = True;
 (* plotFaces = True; *)
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
-edgeTopology = True;
+(* edgeTopology = True; *)
 
 
 (* viewAngle = "top"; *)
@@ -36,6 +36,7 @@ viewAngle = "side";
 (* truncateThreshold = 8; *)
 truncateThreshold = 18;
 (* truncateThreshold = 28; *)
+(* truncateThreshold = 38; *)
 (* truncateThreshold = 58; *)
 
 
@@ -113,10 +114,10 @@ plotShape3D[faces_] := Module[
 	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
 	selectedFaces = Union[selectedFaces, -selectedFaces];
 
-	(* heights = Map[Abs[Mean[#][[1]]]&, selectedFaces]; *)
-	(* heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]]; *)
-	(* Print[heightsTally]; *)
-
+(* 	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print[heightsTally];
+ *)
 (* 
 for truncateThreshold = 28, we have 170 faces, in 8 levels
 
@@ -171,8 +172,40 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
+(* 	singleEdges = {};
+	For[eid = 1, eid <= Length[displayEdges], eid++,
+		If[facesPerEdge[[eid]] == 1,
+			AppendTo[singleEdges, displayEdges[[eid]]];
+		];
+	];
 
-	
+	singleEdgeLengths = Map[Norm[#[[1]] - #[[2]]]&, singleEdges];
+	singleEdgeCenters = Map[Mean, singleEdges];
+	singleEdgeEnds = Flatten[singleEdges, 1];
+
+	Print["min length, min center norm, min center z, min ends norm, min ends z"];
+	Print[Min[singleEdgeLengths]];
+	Print[Min[Map[Norm, singleEdgeCenters]]];
+	Print[Min[Map[Abs[#[[1]]]&, singleEdgeCenters]]];
+	Print[Min[Map[Norm, singleEdgeEnds]]];
+	Print[Min[Map[Abs[#[[1]]]&, singleEdgeEnds]]];
+
+	facesWithSingleEdges = {};
+	For[fid = 1, fid<=Length[displayFaces], fid++,
+		edgesInFace = getEdgesFromFace[displayFaces[[fid]]];
+		If[Length[Intersection[edgesInFace, singleEdges, SameTest -> sameEdge]] > 0,
+			AppendTo[facesWithSingleEdges, displayFaces[[fid]]];
+		];
+	];
+
+	Print["faces with single edges"];
+	Print[Length[facesWithSingleEdges]];
+	heights = Map[Abs[Mean[#][[1]]]&, facesWithSingleEdges];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print[heightsTally];
+
+	Exit[]; *)
+
 	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
 	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
 	allFacesAfterTruncation = otherFaces;
@@ -207,23 +240,31 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 
 (* 	For[k=1, k<=Length[truncatedEdges], k++,
 		te = truncatedEdges[[k]];
-		Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}];
+		(* Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}]; *)
 		For[k2=k+1, k2<=Length[truncatedEdges], k2++,
 			te2 = truncatedEdges[[k2]];
 			int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
 			If[Length[int] == 1,
 				comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
 				comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
+				d12 = comp1 - comp2;
+				d11 = comp1 - int[[1]];
+				d22 = comp2 - int[[1]];
+				normalizedInner1 = HInner[d12, d11]/HNorm[d12]/HNorm[d11];
 				Print[{k, 
 					k2, 
 					HInner[comp1, comp2]//RoundEpsilon, 
 					HNorm[comp1 - comp2]//RoundEpsilon,
-					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon
+					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon,
+					normalizedInner1,
+					ArcCos[normalizedInner1]//RoundEpsilon,
+					(Pi/ArcCos[normalizedInner1])//RoundEpsilon
 				}];
 			];
 		];
 	];
- *)
+
+	Exit[]; *)
 
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
