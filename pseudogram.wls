@@ -1,9 +1,17 @@
 #!/usr/bin/env wolframscript
 
 exportToPov = True;
+hyperbolic = True;
 
-frameCount = 200;
-sideCount = 13;
+hyperbolic = False;
+
+argv = Rest @ $ScriptCommandLine;
+If[Length[argv] >= 1, 
+	hyperbolic = ToExpression[argv[[1]]]
+];
+
+frameCount = 400;
+sideCount = If[hyperbolic, 13, 12];
 
 unit = 0.4;
 
@@ -16,11 +24,11 @@ imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, "pseudogram"}];
 axisColor = Darker[White, 0.5];
 plotPoints = 20;
-maxRecursion = 1;
+maxRecursion = 2;
 
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 
-shapeWithParams = "pseudogram_" <> IntegerString[sideCount];
+shapeWithParams = If[hyperbolic, "pseudogram_", "star_polygon_"] <> IntegerString[sideCount];
 
 RoundEpsilon[v_] := Round[v, epsilon];
 HInner[v_, u_] := 2 * v[[1]] * u[[1]] - Dot[v, u];
@@ -73,7 +81,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 	startDelay = 0.5;
 	transitionDuration = 0.3;
 	lighting = {{"Point", White, {50, -50, 50}}};
-	range = 3;
+	range = If[hyperbolic, 3, 1];
 	thickness = 0.01 * range;
 
 	ks = Table[k, {k, -sideCount/2, sideCount/2, 1}];
@@ -82,7 +90,12 @@ plotShape3D[progress_, frameIndex_] := Module[
 	absCoefs = Map[#/Max[absCoefs] * startDelay &, absCoefs];
 	(* Print[absCoefs//N]; *)
 
-	vertices = Map[{Cosh[unit #], Sinh[unit #], 0}&, coefs];
+	vertices = 
+		If[hyperbolic,
+			Map[{Cosh[unit #], Sinh[unit #], 0}&, coefs],
+			Map[{Cos[2 Pi/sideCount #], Sin[2 Pi/sideCount #], 0}&, coefs]
+		];
+
 	For[k = 1, k <= Length[vertices], k++,
 		absCoef = absCoefs[[k]];
 		oldVertex = vertices[[k]];
@@ -149,15 +162,17 @@ plotShape3D[progress_, frameIndex_] := Module[
 	];
 
 	background = ContourPlot3D[
-		z == 2 range,
+		z == 3 range,
 		{x, -2 range, 2 range}, 
 		{y, -2 range, 2 range}, 
 		{z, -2 range, 2 range},
 		Axes -> None,
 		BoundaryStyle -> None,
+		MaxRecursion -> maxRecursion,
+		PlotPoints -> plotPoints,
 		MeshFunctions -> {0 &}, 
 		MeshShading -> { { Lighter[Blue] , Opacity[0.3] } },
-		RegionFunction -> Function[{x, y, z}, x^2 - y^2 > 1 * 1.1] 
+		RegionFunction -> Function[{x, y, z}, x^2 + If[hyperbolic, -1, 1] y^2 > 1 * If[hyperbolic, 1.1, 1.05]] 
 	];
 
   graph = Show[graph, background];
@@ -213,21 +228,22 @@ exportAnimation[] := Module[
 
 	progressIds = 
 		Join[
-			Table[0, {k, Ceiling[frameCount/6] }],
+			Table[0, {k, Ceiling[frameCount/3] }],
 			Table[k, {k, 0, 1, 1/(frameCount - 1)}],
-			Table[1, {k, Ceiling[frameCount/6] }]
+			Table[1, {k, Ceiling[frameCount/3] }]
 		];
 	Print[N[progressIds]];
+	allFrameCount = Length[progressIds];
 
 	For[frameIndex = 1, frameIndex <= Length[progressIds], frameIndex++,
 		progress = progressIds[[frameIndex]];
 		Print["exportFrame"];
-		Print[{progress, frameIndex, frameCount}];
+		Print[{progress, frameIndex, allFrameCount}];
 
 		exportFrame[progress, frameIndex, outputFrameFolderName];
 	];
 	
-	delay = If[frameCount >= 50, 3, Floor[500/frameCount]];
+	delay = If[allFrameCount >= 50, 3, Floor[500/allFrameCount]];
 
 	(* gifCommand = "magick convert -duplicate 1,-2-1 -quiet +repage -alpha remove -loop 0 -delay " *)
 	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " 

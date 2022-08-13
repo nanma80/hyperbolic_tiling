@@ -1,2 +1,2 @@
-wolframscript.exe .\great_heptagons_by_face.wls
-wolframscript.exe .\great_heptagons_vertex_figure.wls
+wolframscript.exe .\pseudogram.wls True
+wolframscript.exe .\pseudogram.wls False
