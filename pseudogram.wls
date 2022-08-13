@@ -78,10 +78,14 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 plotShape3D[progress_, frameIndex_] := Module[
 	{displayFaces, allEdges, edges, allVertices, vertices},
 
+	(* rot = RotationMatrix[{{50,-50,50}, {0, 0, 1}}]; *)
+	rot = IdentityMatrix[3];
+	(* rot = RotationMatrix[{{0,-0.5,1}, {0,0,1}}]; *)
+
 	startDelay = 0.5;
 	transitionDuration = 0.3;
 	lighting = {{"Point", White, {50, -50, 50}}};
-	range = If[hyperbolic, 3, 1];
+	range = If[hyperbolic, 3, 0.8];
 	thickness = 0.01 * range;
 
 	ks = Table[k, {k, -sideCount/2, sideCount/2, 1}];
@@ -113,6 +117,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 		];
 		vertices[[k]] = newVertex;
 	];
+	vertices = vertices.rot;
 	edges = getEdgesFromFace[vertices];
 	(* remove the closing edge *)
 	edges = edges[[Range[Length[edges] - 1 ]]];
@@ -122,8 +127,8 @@ plotShape3D[progress_, frameIndex_] := Module[
 	elements = Union[
 		elements,
 		{
-			{FaceForm[axisColor], Cylinder[{{-2 range, 0, -1}, {2 range, 0, -1}}, thickness/2]},
-			{FaceForm[axisColor], Cylinder[{{0, -2 range, -1}, {0, 2 range, -1}}, thickness/2]}
+			{FaceForm[axisColor], Cylinder[{{-2 range, 0, -1}, {2 range, 0, -1}}.rot, thickness/2]},
+			{FaceForm[axisColor], Cylinder[{{0, -2 range, -1}, {0, 2 range, -1}}.rot, thickness/2]}
 		}
 	];
 
@@ -154,24 +159,25 @@ plotShape3D[progress_, frameIndex_] := Module[
 
 	graph = Graphics3D[
 		elements,
-		ViewPoint -> {0, 0, 1000},
-		ViewVertical -> {0, 1, 0},
+		ViewPoint -> {0, 0, 1000}.rot,
+		ViewVertical -> {0, 1, 0}.rot,
 		PlotRange -> {{range, -range}, {range, -range}, {range, -range}},
 		Lighting -> lighting
 	];
 
+	gauge = {{1,0,0},{0,If[hyperbolic,-1,1],0},{0,0,1}};
 	background = ContourPlot3D[
-		z == -1.5 range,
-		{x, -2 range, 2 range}, 
-		{y, -2 range, 2 range}, 
-		{z, -2 range, 2 range},
+		z == -0.02 range,
+		{x, -10 range, 10 range}, 
+		{y, -10 range, 10 range}, 
+		{z, -10 range, 10 range},
 		Axes -> None,
 		BoundaryStyle -> None,
 		MaxRecursion -> maxRecursion,
 		PlotPoints -> plotPoints,
 		MeshFunctions -> {0 &}, 
 		MeshShading -> { { Lighter[Blue] , Opacity[0.3] } },
-		RegionFunction -> Function[{x, y, z}, x^2 + If[hyperbolic, -1, 1] y^2 > 1 * 1.05] 
+		RegionFunction -> Function[{x, y, z}, ({{x,y,z}}.gauge.{{x},{y},{z}})[[1]][[1]] > 1 * 1.05] 
 	];
 
   graph = Show[graph, background];
