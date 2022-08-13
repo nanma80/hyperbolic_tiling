@@ -2,7 +2,7 @@
 
 exportToPov = True;
 
-frameCount = 20;
+frameCount = 200;
 sideCount = 13;
 
 unit = 0.4;
@@ -14,6 +14,9 @@ ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pv
 imageSize = {4, 3}/3 * 720;
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, "pseudogram"}];
+axisColor = Darker[White, 0.5];
+plotPoints = 20;
+maxRecursion = 1;
 
 If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 
@@ -103,7 +106,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 	edges = edges[[Range[Length[edges] - 1 ]]];
 
 	elements = {};
-	axisColor = Darker[White, 0.5];
+
 	elements = Union[
 		elements,
 		{
@@ -145,9 +148,6 @@ plotShape3D[progress_, frameIndex_] := Module[
 		Lighting -> lighting
 	];
 
-	plotPoints = 20;
-	maxRecursion = 1;
-
 	background = ContourPlot3D[
 		z == 2 range,
 		{x, -2 range, 2 range}, 
@@ -155,11 +155,8 @@ plotShape3D[progress_, frameIndex_] := Module[
 		{z, -2 range, 2 range},
 		Axes -> None,
 		BoundaryStyle -> None,
-	  (* PlotPoints -> plotPoints,  *)
-	  (* MaxRecursion -> maxRecursion, *)
 		MeshFunctions -> {0 &}, 
 		MeshShading -> { { Lighter[Blue] , Opacity[0.3] } },
-		RegionBoundaryStyle -> None,
 		RegionFunction -> Function[{x, y, z}, x^2 - y^2 > 1 * 1.1] 
 	];
 
@@ -214,7 +211,12 @@ exportAnimation[] := Module[
 	gifFolder = outputFolder;
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
-	progressIds = Table[k, {k, 0, 1, 1/(frameCount - 1)}];
+	progressIds = 
+		Join[
+			Table[0, {k, Ceiling[frameCount/6] }],
+			Table[k, {k, 0, 1, 1/(frameCount - 1)}],
+			Table[1, {k, Ceiling[frameCount/6] }]
+		];
 	Print[N[progressIds]];
 
 	For[frameIndex = 1, frameIndex <= Length[progressIds], frameIndex++,
