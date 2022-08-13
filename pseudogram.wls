@@ -88,7 +88,6 @@ plotShape3D[progress_, frameIndex_] := Module[
 	coefs = Table[k, {k, -sideCount/2, sideCount/2, 1}];
 	absCoefs = Map[Abs[#+1/4]&, coefs];
 	absCoefs = Map[#/Max[absCoefs] * startDelay &, absCoefs];
-	(* Print[absCoefs//N]; *)
 
 	vertices = 
 		If[hyperbolic,
@@ -132,8 +131,8 @@ plotShape3D[progress_, frameIndex_] := Module[
 		elements,
 		Table[
 			{
-				FaceForm[ If[Mod[k, 2] == 0, Red, Green] ],
-				Sphere[vertices[[k]], thickness * 2]
+				FaceForm[ If[Mod[k, 2] == 0, Lighter[White, 0.99], Darker[Gray, 0.99] ] ],
+				Sphere[vertices[[k]], thickness * 3]
 			}, 
 			{k, 1, Length[vertices]}
 		]
@@ -144,7 +143,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 		Table[
 		{
 				Opacity[1],
-				FaceForm[Blue], 
+				FaceForm[ Hue[Mod[(k-1)/Length[edges] + 1/2, 1]] ], 
 				Cylinder[
 					edges[[k]], 
 					thickness
@@ -162,7 +161,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 	];
 
 	background = ContourPlot3D[
-		z == 1.5 range,
+		z == -1.5 range,
 		{x, -2 range, 2 range}, 
 		{y, -2 range, 2 range}, 
 		{z, -2 range, 2 range},
@@ -172,7 +171,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 		PlotPoints -> plotPoints,
 		MeshFunctions -> {0 &}, 
 		MeshShading -> { { Lighter[Blue] , Opacity[0.3] } },
-		RegionFunction -> Function[{x, y, z}, x^2 + If[hyperbolic, -1, 1] y^2 > 1 * If[hyperbolic, 1.1, 1.05]] 
+		RegionFunction -> Function[{x, y, z}, x^2 + If[hyperbolic, -1, 1] y^2 > 1 * 1.05] 
 	];
 
   graph = Show[graph, background];
@@ -228,9 +227,9 @@ exportAnimation[] := Module[
 
 	progressIds = 
 		Join[
-			Table[0, {k, Ceiling[frameCount/3] }],
+			Table[0, {k, Floor[frameCount/6] }],
 			Table[k, {k, 0, 1, 1/(frameCount - 1)}],
-			Table[1, {k, Ceiling[frameCount/3] }]
+			Table[1, {k, Floor[frameCount/3] }]
 		];
 	Print[N[progressIds]];
 	allFrameCount = Length[progressIds];
