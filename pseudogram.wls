@@ -162,7 +162,7 @@ plotShape3D[progress_, frameIndex_] := Module[
 	];
 
 	background = ContourPlot3D[
-		z == 3 range,
+		z == 1.5 range,
 		{x, -2 range, 2 range}, 
 		{y, -2 range, 2 range}, 
 		{z, -2 range, 2 range},
