@@ -8,15 +8,13 @@ highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 edgeTopology = False;
-vertexFigureConvexHull = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
-(* highlightCommonFaces = True; *)
-vertexFigure = True;
-vertexFigureConvexHull = True;
+highlightCommonFaces = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
 
@@ -35,9 +33,9 @@ viewAngle = "";
 (* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-(* truncateThreshold = 8; *)
+truncateThreshold = 8;
 (* truncateThreshold = 18; *)
-truncateThreshold = 28;
+(* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
 (* truncateThreshold = 58; *)
 
@@ -240,39 +238,33 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["tally of tallyVertices"];
 	Print[Tally[Map[#[[2]]&, tallyVertices]]];
 
-	If[vertexFigureConvexHull,
-		vfch = {};
-		For[k=1, k<=Length[truncatedEdges], k++,
-			te = truncatedEdges[[k]];
-			(* Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}]; *)
-			For[k2=k+1, k2<=Length[truncatedEdges], k2++,
-				te2 = truncatedEdges[[k2]];
-				int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
-				If[Length[int] == 1,
-					comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
-					comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
-					AppendTo[vfch, {comp1, comp2}];
-(* 					d12 = comp1 - comp2;
-					d11 = comp1 - int[[1]];
-					d22 = comp2 - int[[1]];
-					normalizedInner1 = HInner[d12, d11]/HNorm[d12]/HNorm[d11];
-					Print[{k, 
-						k2, 
-						HInner[comp1, comp2]//RoundEpsilon, 
-						HNorm[comp1 - comp2]//RoundEpsilon,
-						HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon,
-						normalizedInner1,
-						ArcCos[normalizedInner1]//RoundEpsilon,
-						(Pi/ArcCos[normalizedInner1])//RoundEpsilon
-					}]; *)
-				];
+(* 	For[k=1, k<=Length[truncatedEdges], k++,
+		te = truncatedEdges[[k]];
+		(* Print[{k, HInner[te[[1]], te[[2]]], HNorm[te[[1]] - te[[2]]]}]; *)
+		For[k2=k+1, k2<=Length[truncatedEdges], k2++,
+			te2 = truncatedEdges[[k2]];
+			int = Intersection[ te, te2, SameTest -> ApproxSamePoint ];
+			If[Length[int] == 1,
+				comp1 = Complement[te, int, SameTest -> ApproxSamePoint][[1]];
+				comp2 = Complement[te2, int, SameTest -> ApproxSamePoint][[1]];
+				d12 = comp1 - comp2;
+				d11 = comp1 - int[[1]];
+				d22 = comp2 - int[[1]];
+				normalizedInner1 = HInner[d12, d11]/HNorm[d12]/HNorm[d11];
+				Print[{k, 
+					k2, 
+					HInner[comp1, comp2]//RoundEpsilon, 
+					HNorm[comp1 - comp2]//RoundEpsilon,
+					HInner[comp1 - int[[1]], comp2 - int[[1]]]//RoundEpsilon,
+					normalizedInner1,
+					ArcCos[normalizedInner1]//RoundEpsilon,
+					(Pi/ArcCos[normalizedInner1])//RoundEpsilon
+				}];
 			];
 		];
-		Print[vfch];
-		Print[vfch//Length];
-		
-		truncatedEdges = vfch;
 	];
+
+	Exit[]; *)
 
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
@@ -379,34 +371,163 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	]
 ];
 
+
 shape = "h_7_3";
-
 dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
-Print["Reading data for " <> shape <> " from " <> dataFileName];
-
 faces = Get[dataFileName];
+selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
+selectedFaces = Union[selectedFaces, -selectedFaces];
+displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
+faces = Map[getHyperboloid, stellatedFaces, {2}];
 
-graph = plotShape3D[faces];
-
-outputFileName = If[vertexFigure, If[vertexFigureConvexHull, "vertexFigureCH_", "vertexFigure_"], ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_" <> IntegerString[truncateThreshold] <> ".png";
-
-(* imageSize = {600, 450}; *)
-imageSize = {4, 3}/3 * 720;
-
-imageFolder = "images";
-outputFolder = FileNameJoin[{imageFolder, "great_heptagons"}];
-If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
-outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-
-cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
-
-If[exportToPov,
-  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-  Run[cropCommand];
-  ,
-  Export[outputFileName, graph];
+heights = Map[RoundEpsilon[Mean[#][[1]]]&, faces];
+heightsTally = Tally[heights];
+uniqueHeights = Map[#[[1]]&, heightsTally];
+sortedHeights = Sort[uniqueHeights, (Abs[#1] < Abs[#2]) || (Abs[#1] == Abs[#2] && #1 < #2) &];
+getLevelByHeight = <||>;
+getFaceCountByHeight = <||>;
+For[hid = 1, hid <= Length[sortedHeights], hid++,
+	getLevelByHeight[sortedHeights[[hid]]] = hid;
+	getFaceCountByHeight[heightsTally[[hid]][[1]] ] = heightsTally[[hid]][[2]];
 ];
 
-Print["Saved image to " <> outputFileName];
+Print[faces//Length];
+Print[sortedHeights];
+
+p = 7; 
+q = 3;
+(* chi: p0 and p2 *)
+inner02 = Cot[Pi/p]*Cot[Pi/q];
+(* psi: p1 and p2 *)
+inner12 = Cos[Pi/q]/Sin[Pi/p];
+(* phi: p0 and p1 *)
+inner01 = Cos[Pi/p]/Sin[Pi/q];
+
+ch2psi = 2 * inner12 ^ 2 - 1;
+
+p2 = {1, 0, 0};
+p0 = {inner02, Sqrt[inner02^2-1], 0}//Simplify;
+p1 = {inner12, Sqrt[inner12^2-1] Cos[Pi/p], Sqrt[inner12^2-1] Sin[Pi/p]}//Simplify;
+(* other p2 such that the midpoint of p2 and otherp2 is p1 *)
+otherp2 = {ch2psi, Sqrt[ch2psi^2-1] Cos[Pi/p], Sqrt[ch2psi^2-1] Sin[Pi/p]};
+
+vertex1 = p0;
+mirror1 = {0, 0, 1};
+mirror2 = {0, -Sin[Pi/p], Cos[Pi/p]};
+mirror3 = otherp2 - p2//Simplify;
+
+mirrors = {mirror1, mirror2, mirror3}//N;
+
+topVertexFaceId = Select[Range[Length[faces]], Mean[faces[[#]]][[1]] < -1 && Mean[ faces[[#]] ][[1]] > -2 &][[1]];
+
+Print[topVertexFaceId];
+
+edgesByFace = Map[getEdgesFromFace, faces];
+
+faceOverlapOnEdge[id1_, id2_] := Length[Intersection[edgesByFace[[id1]], edgesByFace[[id2]], SameTest -> sameEdge]] == 1;
+neighborFaceIds = Select[Range[Length[faces]], faceOverlapOnEdge[#, topVertexFaceId]& ];
+Print[neighborFaceIds];
+
+neighborCenter = Mean[faces[[neighborFaceIds[[1]]  ]]];
+topFaceCenter = Mean[faces[[topVertexFaceId]]];
+newMirror3 = neighborCenter - topFaceCenter;
+
+(* replace old mirror3 by newMirror3 *)
+mirrors = {mirror1, mirror2, newMirror3};
+Print["mirrors"];
+Print[mirrors];
+
+allVertices = Flatten[faces, 1];
+vertices = Union[allVertices , SameTest -> ApproxSamePoint];
+Print[{Length[allVertices], Length[vertices]}];
+
+facesPerVertex = Table[
+	Length[Select[faces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
+];
+Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
+topVertexIndices = Select[Range[Length[facesPerVertex]], facesPerVertex[[#]]==Max[facesPerVertex]&];
+
+topVertices = vertices[[topVertexIndices]];
+topVertex = SortBy[topVertices, Norm[# - {-3, -3, 3}]&][[1]];
+Print["topVertex"];
+Print[topVertex];
+
+topFaces = Select[faces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
+truncatedEdges = {};
+
+For[fid = 1, fid <= Length[topFaces], fid++,
+	faceToTruncate = topFaces[[fid]];
+	vid = Select[Range[Length[faceToTruncate]], ApproxSamePoint[faceToTruncate[[#]], topVertex]&][[1]];
+	faceToTruncate = RotateLeft[faceToTruncate, vid - 1];
+	truncatedCenteredFace = Join[
+		{faceToTruncate[[1]] (1 - vfRatio) + vfRatio faceToTruncate[[ Length[faceToTruncate] ]]},
+		{faceToTruncate[[1]] (1 - vfRatio) + vfRatio faceToTruncate[[2]]},
+		faceToTruncate[[Range[2, Length[faceToTruncate] ]]]
+	];
+	AppendTo[truncatedEdges, 
+		{
+			faceToTruncate[[1]] (1 - vfRatio) + faceToTruncate[[ Length[faceToTruncate] ]] vfRatio,
+			faceToTruncate[[1]] (1 - vfRatio) + faceToTruncate[[2]] vfRatio
+		}
+	];
+];
+
+Print["Vertex figure has " <> IntegerString[Length[truncatedEdges]] <> " line segments"];
+verticesInVf = Union[Flatten[truncatedEdges, 1], SameTest -> ApproxSamePoint];
+Print[Length[verticesInVf]];
+
+(* order vertices in a face in a loop *)
+vfCenter = Mean[verticesInVf];
+proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
+p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
+args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
+verticesInVf = verticesInVf[[Ordering[args]]];
+
+
+reconstructFaces = {verticesInVf};
+countStart = -1;
+nGenerations = 4;
+For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {2}];
+		reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> sameCenter];
+	];
+];
+Print[Length[reconstructFaces]];
+
+Print["Making it more symmetric"];
+
+(* Making it symmetric *)
+centeredMirrors = Select[mirrors, #[[1]] == 0 &];
+
+countStart = -1;
+For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {2}];
+		reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> sameCenter];
+	];
+];
+
+Print[Length[reconstructFaces]];
+
+commonFaces = Intersection[reconstructFaces, faces, SameTest -> sameCenter];
+Print[{nGenerations, Map[Length, {faces, reconstructFaces, commonFaces}]}];
+
+(* 
+Using the old mirrors,
+we can at most get half of the faces because we limit on z+.
+
+Using the new mirrors,
+we can get all faces
+
+all old mirrors are spacelike. In the new mirror, one of them is timelike.
+
+ *)
 
