@@ -480,22 +480,54 @@ verticesInVf = Union[Flatten[truncatedEdges, 1], SameTest -> ApproxSamePoint];
 Print[Length[verticesInVf]];
 
 (* order vertices in a face in a loop *)
-vfCenter = Mean[verticesInVf];
-proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
-p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
-args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-verticesInVf = verticesInVf[[Ordering[args]]];
+orderFace[f_] := Module[
+	{},
+	vfCenter = f[[1]][[1]];
+	verticesInVf = f[[2]];
+	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
+	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
+	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
+	verticesInVf[[Ordering[args]]]
+];
 
+(* faceOverlap[f1_,f2_] := Length[Intersection[f1, f2, SameTest -> ApproxSamePoint]] >= 3; *)
+(* mergeFace[f1_,f2_] := Union[f1, f2, SameTest -> ApproxSamePoint]; *)
 
-reconstructFaces = {verticesInVf};
+faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
+mergeFace[f1_,f2_] := {f1[[1]], Union[f1[[2]], f2[[2]], SameTest -> ApproxSamePoint]};
+
+mergeToFaces[f1sOriginal_, f2s_] := Module[
+	{fid, f2},
+	f1s = f1sOriginal;
+	For[f2id=1,f2id<=Length[f2s],f2id++,
+		f2 = f2s[[f2id]];
+		overlappingWithExisting = False;
+		For[f1id=1,f1id<=Length[f1s],f1id++,
+			f1 = f1s[[f1id]];
+			If[faceOverlap[f1, f2],
+				f1s[[f1id]] = mergeFace[f1, f2];
+				overlappingWithExisting = True;
+			];
+		];
+		If[overlappingWithExisting == False,
+			AppendTo[f1s, f2];
+		];
+	];
+	f1s
+];
+
+faceCenter = topVertex/HInner[topVertex, topVertex]*HInner[topVertex, verticesInVf[[1]]];
+reconstructFaces = {{{faceCenter}, verticesInVf}};
+
 countStart = -1;
-nGenerations = 4;
+nGenerations = 1;
 For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
 	For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
-		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {2}];
-		reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> sameCenter];
+		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
 Print[Length[reconstructFaces]];
@@ -510,12 +542,23 @@ For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
 	For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
-		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {2}];
-		reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> sameCenter];
+		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
 
+
+lengths = Map[Length, reconstructFaces];
+Print[Tally[lengths]];
+
+Print["ordering faces"];
+reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
+Print[reconstructFaces];
+
+
+Exit[];
 
 commonFaces = Intersection[reconstructFaces, faces, SameTest -> sameCenter];
 Print[{nGenerations, Map[Length, {faces, reconstructFaces, commonFaces}]}];
