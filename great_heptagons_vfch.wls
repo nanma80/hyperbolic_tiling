@@ -162,13 +162,13 @@ for truncateThreshold = 28, we have 170 faces, in 8 levels
 	Print["topVertex"];
 	Print[topVertex];
 
-(* 	facesPerEdge = Table[
+	facesPerEdge = Table[
 		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
 	];
 
 	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
 	Print[Tally[facesPerEdge]];
- *)	
+	
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
@@ -490,9 +490,6 @@ orderFace[f_] := Module[
 	verticesInVf[[Ordering[args]]]
 ];
 
-(* faceOverlap[f1_,f2_] := Length[Intersection[f1, f2, SameTest -> ApproxSamePoint]] >= 3; *)
-(* mergeFace[f1_,f2_] := Union[f1, f2, SameTest -> ApproxSamePoint]; *)
-
 faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
 mergeFace[f1_,f2_] := {f1[[1]], Union[f1[[2]], f2[[2]], SameTest -> ApproxSamePoint]};
 
@@ -520,7 +517,73 @@ faceCenter = topVertex/HInner[topVertex, topVertex]*HInner[topVertex, verticesIn
 reconstructFaces = {{{faceCenter}, verticesInVf}};
 
 countStart = -1;
-nGenerations = 1;
+nGenerations = 2;
+For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
+	];
+];
+Print[Length[reconstructFaces]];
+
+Print["Making it more symmetric"];
+
+(* Making it symmetric *)
+centeredMirrors = Select[mirrors, #[[1]] == 0 &];
+
+countStart = -1;
+For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
+	];
+];
+Print["before invert"];
+Print[Length[reconstructFaces]];
+
+invertedFaces = Map[(-#)&, reconstructFaces, {2}];
+int = Intersection[reconstructFaces, invertedFaces, SameTest -> faceOverlap];
+Print["Length[int]"];
+Print[Length[int]];
+reconstructFaces = mergeToFaces[reconstructFaces, invertedFaces];
+
+Print["after merging with invert"];
+Print[Length[reconstructFaces]];
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
+
+seedFid = -1;
+For[fid=1,fid<=Length[reconstructFaces],fid++,
+	face = reconstructFaces[[fid]];
+	newFace2 = Map[HReflect[#, mirrors[[2]] ]&, face, {2}];
+	newFace3 = Map[HReflect[#, mirrors[[3]] ]&, face, {2}];
+
+	If[faceOverlap[face,newFace2] && faceOverlap[face,newFace3],
+		Print["found invariant face wrt mirrors 2&3: " <> IntegerString[fid]];
+		seedFid = fid;
+		Break[];
+	];
+];
+
+If[seedFid == -1,
+	Print["cannot find seed face"]; 
+	Exit[],
+	Print["seed face: " <> IntegerString[seedFid]];
+];
+seedFace = reconstructFaces[[seedFid]];
+seedFace = {seedFace[[1]], seedFace[[2]][[{1}]] };
+reconstructFaces1 = reconstructFaces;
+
+reconstructFaces = { seedFace };
+
+countStart = -1;
+nGenerations = 5;
 For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
@@ -548,20 +611,30 @@ For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
 	];
 ];
 
+Print["after second round of recon"];
+Print[Length[reconstructFaces]];
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
 
-lengths = Map[Length, reconstructFaces];
-Print[Tally[lengths]];
+int12 = Intersection[reconstructFaces, reconstructFaces1, SameTest -> faceOverlap];
+Print["Length[int12]"];
+Print[Map[Length,{reconstructFaces, reconstructFaces1, int12}]];
+
+For[fid=1,fid<=Length[reconstructFaces],fid++,
+	face1 = reconstructFaces1[[fid]];
+	faces2 = Intersection[reconstructFaces, {face1}, SameTest -> faceOverlap];
+	If[Length[faces2] != 1,
+		Print["Cannot find unique matching face for fid: " <> IntegerString[fid] <> " " <> IntegerString[Length[faces2]]],
+		face2 = faces2[[1]];
+		intVertices = Intersection[face1[[2]], face2[[2]], SameTest -> ApproxSamePoint];
+		Print[{fid, Length[face1[[2]]], Length[face2[[2]]], Length[intVertices]}];
+	];
+];
 
 Print["ordering faces"];
 reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
 Print[reconstructFaces];
-
-
-Exit[];
-
-commonFaces = Intersection[reconstructFaces, faces, SameTest -> sameCenter];
-Print[{nGenerations, Map[Length, {faces, reconstructFaces, commonFaces}]}];
 
 (* 
 Using the old mirrors,
