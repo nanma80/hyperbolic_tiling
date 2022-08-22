@@ -11,9 +11,9 @@ edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
-plotEdges = True;
-(* highlightCommonFaces = True; *)
+plotFaces = True;
+(* plotEdges = True; *)
+highlightCommonFaces = True;
 (* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
@@ -109,16 +109,50 @@ plotShape3D[faces_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
 
-	displayFaces = faces;
-	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
-	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
-	Print["There are " <> IntegerString[Length[displayEdges]] <> " edges in total."];
-	vertices = Flatten[displayEdges, 1];
-	
+	selectedFaces = faces;
+
+	selectedFaces = Select[selectedFaces, Abs[Mean[#][[1]]] < truncateThreshold &];
+	selectedFaces = Union[selectedFaces, -selectedFaces];
+
+(* 	heights = Map[Abs[Mean[#][[1]]]&, selectedFaces];
+	heightsTally = Sort[Tally[heights, ApproxSamePoint[#1, #2]&]];
+	Print[heightsTally];
+ *)
+(* 
+for truncateThreshold = 28, we have 170 faces, in 8 levels
+
+{{1.812922503760635, 2}, {3.0021462851076754, 14}, {5.674307866050231, 14}, {7.817215073975985, 28}, {13.821507644191334, 28}, {16.493669225133896, 28}, {21.308738014002206, 28}, {22.49796179534925, 28}}
+
+ *)
+	(* panning = 0; *)
+	(* selectedFaces = Map[Boost[panning].# &, selectedFaces, {2}]; *)
+
+	(* kleinFaces = Map[getKlein, faces, {2}]; *)
+	displayFaces = Map[getHyperboloid, selectedFaces, {2}];
+
+	stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
+
+	convexHullOrder = Table[Mod[- 6 / stellationLevel * k, 7]+1, {k, 0, 6}];
+	stellatedFaces = Map[#[[convexHullOrder]]&, stellatedFaces];
+
+	displayStellatedFaces = Map[getHyperboloid, stellatedFaces, {2}];
+	displayFaces = displayStellatedFaces;
+	selectedFaces = stellatedFaces;
+
+	Print["There are " <> IntegerString[Length[selectedFaces]] <> " faces. Contributing " <> IntegerString[Length[selectedFaces] * 7 ] <> " edges before dedup."];
+
+	allEdges = Flatten[Map[getEdgesFromFace, selectedFaces], 1];
+	edges = Union[allEdges, SameTest -> sameEdge];
+
+	Print["There are " <> IntegerString[Length[edges]] <> " distinct edges in total."];
+	displayEdges = Map[getHyperboloid, edges, {2}];
+	allVertices = Flatten[displayEdges, 1];
+	vertices = Union[allVertices , SameTest -> ApproxSamePoint];
+
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
 	facesPerVertex = Table[
-		Length[Select[displayFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
+		Length[Select[displayStellatedFaces, (Length[Intersection[#, {vertices[[k]]}, SameTest -> ApproxSamePoint]] > 0)&]], {k, 1, Length[vertices]}
 	];
 	Print["Each vertex belongs to up to " <> IntegerString[Max[facesPerVertex]] <> " faces."];
 	topVertexIndices = Select[Range[Length[facesPerVertex]], facesPerVertex[[#]]==Max[facesPerVertex]&];
@@ -128,6 +162,13 @@ plotShape3D[faces_] := Module[
 	Print["topVertex"];
 	Print[topVertex];
 
+	facesPerEdge = Table[
+		Length[Select[displayStellatedFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
+	];
+
+	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
+	Print[Tally[facesPerEdge]];
+	
 	(* 
 	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
 	*)
@@ -165,9 +206,8 @@ plotShape3D[faces_] := Module[
 
 	Exit[]; *)
 
-	displayCenteredFaces = Select[displayFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
-	otherFaces = Select[displayFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
-
+	displayCenteredFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] > 0)&];
+	otherFaces = Select[displayStellatedFaces, (Length[Intersection[#, {topVertex}, SameTest -> ApproxSamePoint]] == 0)&];
 	allFacesAfterTruncation = otherFaces;
 
 	displayCenteredEdges = Flatten[Map[getEdgesFromFace, displayCenteredFaces], 1];
@@ -518,32 +558,107 @@ Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
 
+seedFid = -1;
+For[fid=1,fid<=Length[reconstructFaces],fid++,
+	face = reconstructFaces[[fid]];
+	newFace2 = Map[HReflect[#, mirrors[[2]] ]&, face, {2}];
+	newFace3 = Map[HReflect[#, mirrors[[3]] ]&, face, {2}];
+
+	If[faceOverlap[face,newFace2] && faceOverlap[face,newFace3],
+		Print["found invariant face wrt mirrors 2&3: " <> IntegerString[fid]];
+		seedFid = fid;
+		Break[];
+	];
+];
+
+If[seedFid == -1,
+	Print["cannot find seed face"]; 
+	Exit[],
+	Print["seed face: " <> IntegerString[seedFid]];
+];
+seedFace = reconstructFaces[[seedFid]];
+seedFace = {seedFace[[1]], seedFace[[2]][[{10}]] };
+reconstructFaces1 = reconstructFaces;
+
+reconstructFaces = { seedFace };
+
+countStart = -1;
+nGenerations = 10;
+For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[mirrors], mirrorIndex >= 2, mirrorIndex--,
+		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
+	];
+];
+Print[Length[reconstructFaces]];
+Print[Length[reconstructFaces[[1]][[2]] ]];
+Print[{reconstructFaces[[1]], reconstructFaces1[[seedFid]]}];
+
+Exit[];
+
+For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
+	];
+];
+Print[Length[reconstructFaces]];
+
+Print["Making it more symmetric"];
+
+(* Making it symmetric *)
+centeredMirrors = Select[mirrors, #[[1]] == 0 &];
+
+countStart = -1;
+For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
+	Print["i = " <> IntegerString[i]];
+	countStart = Length[reconstructFaces];
+	For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
+		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
+		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
+		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
+	];
+];
+
+Print["after second round of recon"];
+Print[Length[reconstructFaces]];
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
+
+int12 = Intersection[reconstructFaces, reconstructFaces1, SameTest -> faceOverlap];
+Print["Length[int12]"];
+Print[Map[Length,{reconstructFaces, reconstructFaces1, int12}]];
+
+For[fid=1,fid<=Length[reconstructFaces],fid++,
+	face1 = reconstructFaces1[[fid]];
+	faces2 = Intersection[reconstructFaces, {face1}, SameTest -> faceOverlap];
+	If[Length[faces2] != 1,
+		Print["Cannot find unique matching face for fid: " <> IntegerString[fid] <> " " <> IntegerString[Length[faces2]]],
+		face2 = faces2[[1]];
+		intVertices = Intersection[face1[[2]], face2[[2]], SameTest -> ApproxSamePoint];
+		Print[{fid, Length[face1[[2]]], Length[face2[[2]]], Length[intVertices]}];
+	];
+];
+
 Print["ordering faces"];
 reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
-(* Print[reconstructFaces]; *)
+Print[reconstructFaces];
 
-graph = plotShape3D[reconstructFaces];
+(* 
+Using the old mirrors,
+we can at most get half of the faces because we limit on z+.
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_vfch_" <> IntegerString[truncateThreshold] <> ".png";
+Using the new mirrors,
+we can get all faces
 
-(* imageSize = {600, 450}; *)
-imageSize = {4, 3}/3 * 720;
+all old mirrors are spacelike. In the new mirror, one of them is timelike.
 
-imageFolder = "images";
-outputFolder = FileNameJoin[{imageFolder, "great_heptagons_vfch"}];
-If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
-outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-
-cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
-
-If[exportToPov,
-  If[FileExistsQ[outputFileName], DeleteFile[outputFileName]];
-  POVRayRender[graph, Method -> "Triangle", OutputPath -> outputFileName, ImageSize -> imageSize, RenderOptions -> "+A0.001 -J +UA"];
-  Run[cropCommand];
-  ,
-  Export[outputFileName, graph];
-];
-
-Print["Saved image to " <> outputFileName];
+ *)
 
