@@ -11,7 +11,7 @@ edgeTopology = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 plotEdges = True;
 (* highlightCommonFaces = True; *)
 (* vertexFigure = True; *)
@@ -23,17 +23,10 @@ plotEdges = True;
 (* viewAngle = "side"; *)
 viewAngle = "";
 
-(* 
-	4: 5 lines
-	8: vertex figure has 9 lines. 
-	28: 13 lines
-	58: 17 lines. All data from the precomputed data file 
-*)
-(* truncateThreshold = 2; *)
-(* truncateThreshold = 3; *)
+truncateThreshold = 3;
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
-truncateThreshold = 8;
+(* truncateThreshold = 8; *)
 (* truncateThreshold = 18; *)
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
@@ -109,7 +102,8 @@ plotShape3D[faces_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
 
-	displayFaces = faces;
+	faceCenters = Map[#[[1]]&, faces];
+	displayFaces = Map[#[[2]]&, faces];
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
 	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
 	Print["There are " <> IntegerString[Length[displayEdges]] <> " edges in total."];
@@ -312,9 +306,21 @@ plotShape3D[faces_] := Module[
 	];
 
 	If[plotFaces,
+		splitFaces = {};
+		For[fid=1,fid<=Length[displayFaces],fid++,
+			splitEdges = getEdgesFromFace[displayFaces[[fid]]];
+			AppendTo[splitFaces, Map[{#[[1]], #[[2]], faceCenters[[fid]] }&, splitEdges]];
+		];
+
 		elements = Union[
 			elements,
-			Table[{Opacity[1], FaceForm[getColor[Mean[displayFaces[[k]]]]], Polygon[displayFaces[[k]]]}, {k, 1, Length[displayFaces]}]
+			Table[
+				{
+					Opacity[1], 
+					FaceForm[getColor[ faceCenters[[k]] ]], 
+					Polygon[ splitFaces[[k]] ]
+				}, 
+			{k, 1, Length[displayFaces]}]
 		];
 	];
 
@@ -335,7 +341,7 @@ plotShape3D[faces_] := Module[
 shape = "h_7_3";
 dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
 faces = Get[dataFileName];
-selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold &];
+selectedFaces = Select[faces, Abs[Mean[#][[1]]] < truncateThreshold + 2 &];
 selectedFaces = Union[selectedFaces, -selectedFaces];
 displayFaces = Map[getHyperboloid, selectedFaces, {2}];
 stellatedFaces = Map[scaleFace[#, ratio, stellationLevel]&, selectedFaces];
@@ -447,7 +453,7 @@ orderFace[f_] := Module[
 	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
 	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
 	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-	verticesInVf[[Ordering[args]]]
+	{vfCenter, verticesInVf[[Ordering[args]]]}
 ];
 
 faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
@@ -477,7 +483,7 @@ faceCenter = topVertex/HInner[topVertex, topVertex]*HInner[topVertex, verticesIn
 reconstructFaces = {{{faceCenter}, verticesInVf}};
 
 countStart = -1;
-nGenerations = 2;
+nGenerations = 3;
 For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
@@ -487,6 +493,15 @@ For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
 		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
+Print[Length[reconstructFaces]];
+
+invertedFaces = Map[(-#)&, reconstructFaces, {2}];
+int = Intersection[reconstructFaces, invertedFaces, SameTest -> faceOverlap];
+Print["Length[int]"];
+Print[Length[int]];
+reconstructFaces = mergeToFaces[reconstructFaces, invertedFaces];
+
+Print["before invert"];
 Print[Length[reconstructFaces]];
 
 Print["Making it more symmetric"];
@@ -504,16 +519,19 @@ For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
 		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
-Print["before invert"];
-Print[Length[reconstructFaces]];
 
-invertedFaces = Map[(-#)&, reconstructFaces, {2}];
-int = Intersection[reconstructFaces, invertedFaces, SameTest -> faceOverlap];
-Print["Length[int]"];
-Print[Length[int]];
-reconstructFaces = mergeToFaces[reconstructFaces, invertedFaces];
 
 Print["after merging with invert"];
+Print[Length[reconstructFaces]];
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
+
+newCenterTs = Map[Abs[#[[1]][[1]][[1]] ]&, reconstructFaces];
+newCenterTsTally = Tally[newCenterTs, ApproxSamePoint[#1, #2]& ];
+Print[newCenterTsTally];
+
+reconstructFaces = Select[reconstructFaces, Abs[#[[1]][[1]][[1]] ] < truncateThreshold &];
+Print["after filtering by threshold"];
 Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
@@ -522,6 +540,11 @@ Print["ordering faces"];
 reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
 (* Print[reconstructFaces]; *)
+
+(* reconstructFaces = reconstructFaces[[{6}]]; *)
+(* face1 = reconstructFaces[[1]];
+volumes = Table[Abs[Det[Map[{#[[1]],#[[2]],#[[3]],1}&, face1[[{1, 2, 3, k}]]]]], {k, 4, Length[face1]}];
+Print[RoundEpsilon[volumes]//Tally]; *)
 
 graph = plotShape3D[reconstructFaces];
 
