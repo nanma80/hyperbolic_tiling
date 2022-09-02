@@ -10,7 +10,7 @@ vertexFigureTopology = False;
 edgeTopology = False;
 
 exportToPov = True;
-(* plotVertices = True; *)
+plotVertices = True;
 plotFaces = True;
 plotEdges = True;
 (* highlightCommonFaces = True; *)
@@ -23,6 +23,12 @@ plotEdges = True;
 (* viewAngle = "side"; *)
 viewAngle = "";
 
+(* 
+3: 14 faces
+4: 28 faces
+6: 42 faces
+18: 112 faces
+ *)
 truncateThreshold = 3;
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
@@ -38,6 +44,9 @@ truncateThreshold = 3;
 (* vfRatio = 1/2; *)
 vfRatio = 1;
 
+(* for reconstruction of faces *)
+nGenerations = 5;
+
 (* always use convexhull *)
 convexHull = True;
 
@@ -45,6 +54,9 @@ If[edgeTopology, vertexFigureTopology = False];
 
 stellationLevel = 3;
 ratio = Tan[stellationLevel Pi/7]/Tan[Pi/7];
+rangeZoom = stellationLevel * 1.5;
+lighting = {{"Point", White, {50, -50, 50}}};
+range = If[viewAngle == "side", 0.8, 4.5] * rangeZoom;
 
 splitEdgeParts = 8;
 dataFolder = "data";
@@ -102,7 +114,7 @@ plotShape3D[faces_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	configs = Get["configs.wl"];
 
-	faceCenters = Map[#[[1]]&, faces];
+	faceCenters = Map[#[[1]][[1]]&, faces];
 	displayFaces = Map[#[[2]]&, faces];
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces"];
 	displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -121,9 +133,23 @@ plotShape3D[faces_] := Module[
 	topVertex = SortBy[topVertices, Norm[# - {-3, -3, 3}]&][[1]];
 	Print["topVertex"];
 	Print[topVertex];
+	topVertexNorm = RoundEpsilon[HNorm[topVertex]];
 
+
+	(* faces per edge analysis. Very slow  *)
+	facesPerEdge = Table[
+		Length[Select[displayFaces, (Length[Intersection[getEdgesFromFace[#], {displayEdges[[k]]}, SameTest -> sameEdge]] > 0)&]], {k, 1, Length[displayEdges]}
+	];
+
+	Print["Each edge belongs to up to " <> IntegerString[Max[facesPerEdge]] <> " faces."];
+	Print[Tally[facesPerEdge]];
+	
 	(* 
-	Each edge belongs to up to 2 faces. tally: {{1, 910}, {2, 826}}
+	Each edge belongs to up to 2 faces.
+	tally by threshold 
+	4: {{2, 140}, {1, 224}}
+	6: {{2, 252}, {1, 280}}
+	18: {{2, 728}, {1, 392}}
 	*)
 (* 	singleEdges = {};
 	For[eid = 1, eid <= Length[displayEdges], eid++,
@@ -220,6 +246,7 @@ plotShape3D[faces_] := Module[
 
 	Exit[]; *)
 
+(* issue: centers and these faces don't match *)
 	If[vertexFigure,
 		displayFaces = allFacesAfterTruncation;
 		displayEdges = Flatten[Map[getEdgesFromFace, displayFaces], 1];
@@ -244,25 +271,24 @@ plotShape3D[faces_] := Module[
 		(* ViewPoint -> {0, 0, 10} *)
 	];
 
-	rangeZoom = stellationLevel * 1.5;
-	lighting = {{"Point", White, {50, -50, 50}}};
-	range = If[viewAngle == "side", 0.8, 3] * rangeZoom;
 	thickness = range / 80.0 / rangeZoom;
-	viewCenter = {-2, 0, 0};
+	viewCenter = {0, 0, 0};
 
 	elements = {};
 	If[plotVertices,
+		displayVertices = Select[vertices, RoundEpsilon[HNorm[#]] == topVertexNorm& ];
 		elements = Union[
 			elements,
 			{
 				{
-					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, vertices]
+					Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 4]&, displayVertices]
 				}
 			}
-		];	
+		];
 	];
 
 	If[plotEdges,
+		displayEdges = Select[displayEdges, RoundEpsilon[HNorm[#[[1]]]] == topVertexNorm || RoundEpsilon[HNorm[#[[2]]]] == topVertexNorm& ];
 		elements = Union[
 			elements,
 			Table[
@@ -447,13 +473,13 @@ Print[Length[verticesInVf]];
 
 (* order vertices in a face in a loop *)
 orderFace[f_] := Module[
-	{},
+	{vfCenter, verticesInVf, proj, p2d, args},
 	vfCenter = f[[1]][[1]];
 	verticesInVf = f[[2]];
 	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
 	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
 	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-	{vfCenter, verticesInVf[[Ordering[args]]]}
+	{ {vfCenter}, verticesInVf[[Ordering[args]]]}
 ];
 
 faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
@@ -483,7 +509,7 @@ faceCenter = topVertex/HInner[topVertex, topVertex]*HInner[topVertex, verticesIn
 reconstructFaces = {{{faceCenter}, verticesInVf}};
 
 countStart = -1;
-nGenerations = 3;
+
 For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
@@ -536,22 +562,42 @@ Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
 
+limitFace[f_, zRange_] := Module[
+	{orderedFace, vfCenter, vertices},
+	orderedFace = orderFace[f];
+	vfCenter = orderedFace[[1]];
+	vertices = orderedFace[[2]];
+
+	inRangeVertices = Select[vertices, Abs[#[[1]]] < zRange& ];
+	edges = getEdgesFromFace[vertices];
+	For[eid=1,eid<=Length[edges],eid++,
+		edge = edges[[eid]];
+		If[ (Abs[edge[[1]][[1]]] - zRange) * (Abs[edge[[2]][[1]]] - zRange) < 0,
+			solutions = Solve[Abs[lambda edge[[1]][[1]] + (1 - lambda) edge[[2]][[1]]] == zRange && lambda > 0 && lambda < 1, {lambda}];
+			(* Print[Length[solutions]]; *)
+			newVertices = (lambda edge[[1]] + (1 - lambda) edge[[2]])/.solutions;
+			inRangeVertices = Join[inRangeVertices, newVertices];
+		];
+	];
+
+	{vfCenter, inRangeVertices }
+];
+
+Print["limit face"];
+reconstructFaces = Map[limitFace[#, range]&, reconstructFaces];
+
 Print["ordering faces"];
 reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
 (* Print[reconstructFaces]; *)
 
-(* reconstructFaces = reconstructFaces[[{6}]]; *)
-(* face1 = reconstructFaces[[1]];
-volumes = Table[Abs[Det[Map[{#[[1]],#[[2]],#[[3]],1}&, face1[[{1, 2, 3, k}]]]]], {k, 4, Length[face1]}];
-Print[RoundEpsilon[volumes]//Tally]; *)
 
 graph = plotShape3D[reconstructFaces];
 
 outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_vfch_" <> IntegerString[truncateThreshold] <> ".png";
 
-(* imageSize = {600, 450}; *)
-imageSize = {4, 3}/3 * 720;
+(* imageSize = {4, 3}/3 * 720; *)
+imageSize = {4, 3}/3 * 1080;
 
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, "great_heptagons_vfch"}];
