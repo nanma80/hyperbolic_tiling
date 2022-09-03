@@ -481,13 +481,13 @@ Print[Length[verticesInVf]];
 
 (* order vertices in a face in a loop *)
 orderFace[f_] := Module[
-	{},
+	{vfCenter, verticesInVf, proj, p2d, args},
 	vfCenter = f[[1]][[1]];
 	verticesInVf = f[[2]];
 	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
 	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
 	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-	verticesInVf[[Ordering[args]]]
+	{ {vfCenter}, verticesInVf[[Ordering[args]]]}
 ];
 
 faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
@@ -552,90 +552,96 @@ int = Intersection[reconstructFaces, invertedFaces, SameTest -> faceOverlap];
 Print["Length[int]"];
 Print[Length[int]];
 reconstructFaces = mergeToFaces[reconstructFaces, invertedFaces];
+reconstructFaces = Map[orderFace, reconstructFaces];
+
 
 Print["after merging with invert"];
 Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
 
-seedFid = -1;
-For[fid=1,fid<=Length[reconstructFaces],fid++,
-	face = reconstructFaces[[fid]];
-	newFace2 = Map[HReflect[#, mirrors[[2]] ]&, face, {2}];
-	newFace3 = Map[HReflect[#, mirrors[[3]] ]&, face, {2}];
 
-	If[faceOverlap[face,newFace2] && faceOverlap[face,newFace3],
-		Print["found invariant face wrt mirrors 2&3: " <> IntegerString[fid]];
-		seedFid = fid;
-		Break[];
-	];
-];
+Print[ Tally[Map[#[[1]][[1]][[1]]&, reconstructFaces], ApproxSamePoint[#1, #2]& ]];
 
-If[seedFid == -1,
-	Print["cannot find seed face"]; 
-	Exit[],
-	Print["seed face: " <> IntegerString[seedFid]];
-];
-seedFace = reconstructFaces[[seedFid]];
-seedFace = {seedFace[[1]], seedFace[[2]][[{10}]] };
+seedFace = Select[reconstructFaces, #[[1]][[1]][[1]] > 0 && #[[1]][[1]][[1]] < 1 &][[1]];
+seedEdges = getEdgesFromFace[seedFace[[2]]];
+(* Print[Length[seedEdges]]; *)
+
+seedNeighbors = Select[reconstructFaces, Length[Intersection[
+	getEdgesFromFace[#[[2]]], seedEdges, SameTest -> sameEdge ]] == 1&];
+(* Print[Length[seedNeighbors]]; *)
+Print[ Tally[Map[#[[1]][[1]][[1]]&, seedNeighbors], ApproxSamePoint[#1, #2]& ]];
+
+seedNeighbor = Select[seedNeighbors, #[[1]][[1]][[1]] > 0 && #[[1]][[1]][[1]] < 1 &][[1]];
+
+(* Print[{seedFace[[2]], seedNeighbor[[2]]}]; *)
+(* Print[seedFace[[2]]]; *)
+mirror1 = seedFace[[2]][[4]] - seedFace[[2]][[5]];
+mirror2 = seedFace[[2]][[3]] - seedFace[[2]][[5]];
+mirror3 = seedFace[[1]][[1]] - seedNeighbor[[1]][[1]];
+
+mirrors = {mirror1, mirror2, mirror3};
+
+seedPoint = seedFace[[2]][[4]];
+Print["mirrors and seed point"];
+Print[mirrors];
+Print[seedPoint];
+
+seedFace = {seedFace[[1]], { seedPoint } };
+maxZ = Max[Map[Abs[#[[1]][[1]][[1]]]&, reconstructFaces ]];
 reconstructFaces1 = reconstructFaces;
 
-reconstructFaces = { seedFace };
+reconstructFaces = {seedFace};
 
+Print["generate single face"];
 countStart = -1;
-nGenerations = 10;
-For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+nGenerations1 = 3;
+For[i = 0, i <= nGenerations1, i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
-	For[mirrorIndex = Length[mirrors], mirrorIndex >= 2, mirrorIndex--,
+	For[mirrorIndex = 1, mirrorIndex <= 2, mirrorIndex++,
 		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
 		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
 		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
 Print[Length[reconstructFaces]];
-Print[Length[reconstructFaces[[1]][[2]] ]];
-Print[{reconstructFaces[[1]], reconstructFaces1[[seedFid]]}];
+(* Print[reconstructFaces[[1]][[2]]]; *)
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
 
-Exit[];
 
-For[i = 0, i <= nGenerations && countStart != Length[reconstructFaces], i++,
+Print["generate more faces"];
+countStart = -1;
+nGenerations2 = 5;
+For[i = 0, i <= nGenerations2, i++,
 	Print["i = " <> IntegerString[i]];
 	countStart = Length[reconstructFaces];
-	For[mirrorIndex = Length[mirrors], mirrorIndex >= 1, mirrorIndex--,
+	For[mirrorIndex = 3, mirrorIndex >= 1, mirrorIndex--,
 		newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
 		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
 		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
 	];
 ];
-Print[Length[reconstructFaces]];
-
-Print["Making it more symmetric"];
-
-(* Making it symmetric *)
-centeredMirrors = Select[mirrors, #[[1]] == 0 &];
-
-countStart = -1;
-For[i = 0, i < 20 && countStart != Length[reconstructFaces], i++,
-	Print["i = " <> IntegerString[i]];
-	countStart = Length[reconstructFaces];
-	For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
-		newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, reconstructFaces, {3}];
-		(* reconstructFaces = Union[reconstructFaces, newFaces, SameTest -> faceOverlap]; *)
-		reconstructFaces = mergeToFaces[reconstructFaces, newFaces];
-	];
-];
-
-Print["after second round of recon"];
 Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
+
+reconstructFaces = Select[reconstructFaces, Abs[#[[1]][[1]][[1]] ] < maxZ + epsilon &];
+Print["after trimming by z"];
+Print[Length[reconstructFaces]];
+faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
+Print[Tally[faceLengths]];
+
 
 int12 = Intersection[reconstructFaces, reconstructFaces1, SameTest -> faceOverlap];
 Print["Length[int12]"];
 Print[Map[Length,{reconstructFaces, reconstructFaces1, int12}]];
 
-For[fid=1,fid<=Length[reconstructFaces],fid++,
+vertexCount1Total=0;
+vertexCountIntTotal=0;
+
+For[fid=1,fid<=Length[reconstructFaces1],fid++,
 	face1 = reconstructFaces1[[fid]];
 	faces2 = Intersection[reconstructFaces, {face1}, SameTest -> faceOverlap];
 	If[Length[faces2] != 1,
@@ -643,22 +649,19 @@ For[fid=1,fid<=Length[reconstructFaces],fid++,
 		face2 = faces2[[1]];
 		intVertices = Intersection[face1[[2]], face2[[2]], SameTest -> ApproxSamePoint];
 		Print[{fid, Length[face1[[2]]], Length[face2[[2]]], Length[intVertices]}];
+		vertexCount1Total += Length[face1[[2]]];
+		vertexCountIntTotal += Length[intVertices];
 	];
 ];
 
-Print["ordering faces"];
-reconstructFaces = Map[orderFace, reconstructFaces];
-Print[Length[reconstructFaces]];
-Print[reconstructFaces];
+Print[{nGenerations1, nGenerations2, vertexCount1Total, vertexCountIntTotal, vertexCountIntTotal/vertexCount1Total//N}];
 
 (* 
-Using the old mirrors,
-we can at most get half of the faces because we limit on z+.
+{2, 4, 784, 639, 0.8150510204081632}
+{3, 4, 784, 645, 0.8227040816326531}
+{2, 5, 784, 780, 0.9948979591836735}
+{3, 5, 784, 784, 1.}
+success!
 
-Using the new mirrors,
-we can get all faces
-
-all old mirrors are spacelike. In the new mirror, one of them is timelike.
-
+the vfch shape can be generated by 3 mirrors
  *)
-
