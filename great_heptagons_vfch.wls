@@ -395,7 +395,7 @@ plotShape3D[faces_] := Module[
 		];
 
 		opacity = 1;
-		If[showHyperboloid, opacity = 0.1];
+		If[showHyperboloid, opacity = 0.4];
 
 		elements = Union[
 			elements,
@@ -604,7 +604,7 @@ If[showHyperboloid,
 graph = plotShape3D[reconstructFaces];
 
 If[showHyperboloid, 
-	plotPoints = 20;
+	plotPoints = 60;
 	maxRecursion = 2;
 
 	hyperboloidGraphSide1 = ContourPlot3D[
@@ -618,9 +618,9 @@ If[showHyperboloid,
 		PlotPoints -> plotPoints,
 		MeshFunctions -> {0 &}, 
 		Boxed -> False,
-		MeshShading -> { { Lighter[Yellow] , Opacity[0.7] } },
-		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] < 1.1 HInner[faceCenter1, faceCenter1]],
-		RegionBoundaryStyle -> None
+		MeshShading -> { { Lighter[Yellow] , Opacity[1] } },
+		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] < 1.1 HInner[faceCenter1, faceCenter1]]
+		(* RegionBoundaryStyle -> None *)
 	];
 
 	hyperboloidGraphSide2 = ContourPlot3D[
@@ -635,8 +635,8 @@ If[showHyperboloid,
 		MeshFunctions -> {0 &}, 
 		Boxed -> False,
 		MeshShading -> { { Lighter[Yellow] , Opacity[0.2] } },
-		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] > 0.9 HInner[faceCenter1, faceCenter1]],
-		RegionBoundaryStyle -> None
+		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] > 0.9 HInner[faceCenter1, faceCenter1]]
+		(* RegionBoundaryStyle -> None *)
 	];
 
 	graph = Show[graph, hyperboloidGraphSide1, hyperboloidGraphSide2]
