@@ -8,6 +8,7 @@ highlightCommonFaces = False;
 vertexFigure = False;
 vertexFigureTopology = False;
 edgeTopology = False;
+showHyperboloid = False;
 
 exportToPov = True;
 plotVertices = True;
@@ -17,7 +18,7 @@ plotEdges = True;
 (* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
-
+showHyperboloid = True;
 
 (* viewAngle = "top"; *)
 (* viewAngle = "side"; *)
@@ -108,6 +109,61 @@ scaleFace[face_, ratio_, stellationLevel_] := Module[
 	edgeOrders = Table[Mod[stellationLevel * k, 7]+1, {k, 0, 6}];
 	(* edges[[edgeOrders]] *)
 	Map[#[[1]]&, edges[[edgeOrders]]]
+];
+
+(* order vertices in a face in a loop *)
+orderFace[f_] := Module[
+	{vfCenter, verticesInVf, proj, p2d, args},
+	vfCenter = f[[1]][[1]];
+	verticesInVf = f[[2]];
+	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
+	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
+	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
+	{ {vfCenter}, verticesInVf[[Ordering[args]]]}
+];
+
+faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
+mergeFace[f1_,f2_] := {f1[[1]], Union[f1[[2]], f2[[2]], SameTest -> ApproxSamePoint]};
+
+mergeToFaces[f1sOriginal_, f2s_] := Module[
+	{fid, f2},
+	f1s = f1sOriginal;
+	For[f2id=1,f2id<=Length[f2s],f2id++,
+		f2 = f2s[[f2id]];
+		overlappingWithExisting = False;
+		For[f1id=1,f1id<=Length[f1s],f1id++,
+			f1 = f1s[[f1id]];
+			If[faceOverlap[f1, f2],
+				f1s[[f1id]] = mergeFace[f1, f2];
+				overlappingWithExisting = True;
+			];
+		];
+		If[overlappingWithExisting == False,
+			AppendTo[f1s, f2];
+		];
+	];
+	f1s
+];
+
+limitFace[f_, zRange_] := Module[
+	{orderedFace, vfCenter, vertices},
+	orderedFace = orderFace[f];
+	vfCenter = orderedFace[[1]];
+	vertices = orderedFace[[2]];
+
+	inRangeVertices = Select[vertices, Abs[#[[1]]] < zRange& ];
+	edges = getEdgesFromFace[vertices];
+	For[eid=1,eid<=Length[edges],eid++,
+		edge = edges[[eid]];
+		If[ (Abs[edge[[1]][[1]]] - zRange) * (Abs[edge[[2]][[1]]] - zRange) < 0,
+			solutions = Solve[Abs[lambda edge[[1]][[1]] + (1 - lambda) edge[[2]][[1]]] == zRange && lambda > 0 && lambda < 1, {lambda}];
+			(* Print[Length[solutions]]; *)
+			newVertices = (lambda edge[[1]] + (1 - lambda) edge[[2]])/.solutions;
+			inRangeVertices = Join[inRangeVertices, newVertices];
+		];
+	];
+
+	{vfCenter, inRangeVertices }
 ];
 
 plotShape3D[faces_] := Module[
@@ -338,11 +394,14 @@ plotShape3D[faces_] := Module[
 			AppendTo[splitFaces, Map[{#[[1]], #[[2]], faceCenters[[fid]] }&, splitEdges]];
 		];
 
+		opacity = 1;
+		If[showHyperboloid, opacity = 0.1];
+
 		elements = Union[
 			elements,
 			Table[
 				{
-					Opacity[1], 
+					Opacity[opacity], 
 					FaceForm[getColor[ faceCenters[[k]] ]], 
 					Polygon[ splitFaces[[k]] ]
 				}, 
@@ -471,40 +530,6 @@ Print["Vertex figure has " <> IntegerString[Length[truncatedEdges]] <> " line se
 verticesInVf = Union[Flatten[truncatedEdges, 1], SameTest -> ApproxSamePoint];
 Print[Length[verticesInVf]];
 
-(* order vertices in a face in a loop *)
-orderFace[f_] := Module[
-	{vfCenter, verticesInVf, proj, p2d, args},
-	vfCenter = f[[1]][[1]];
-	verticesInVf = f[[2]];
-	proj = Orthogonalize[{{1, 2, 3}, {1.23, 4.34, 0}}];
-	p2d = Map[(# - vfCenter) . Transpose[proj] &, verticesInVf];
-	args = Map[Arg[#[[1]] + #[[2]] I] &, p2d];
-	{ {vfCenter}, verticesInVf[[Ordering[args]]]}
-];
-
-faceOverlap[f1_,f2_] := ApproxSamePoint[f1[[1]][[1]], f2[[1]][[1]]];
-mergeFace[f1_,f2_] := {f1[[1]], Union[f1[[2]], f2[[2]], SameTest -> ApproxSamePoint]};
-
-mergeToFaces[f1sOriginal_, f2s_] := Module[
-	{fid, f2},
-	f1s = f1sOriginal;
-	For[f2id=1,f2id<=Length[f2s],f2id++,
-		f2 = f2s[[f2id]];
-		overlappingWithExisting = False;
-		For[f1id=1,f1id<=Length[f1s],f1id++,
-			f1 = f1s[[f1id]];
-			If[faceOverlap[f1, f2],
-				f1s[[f1id]] = mergeFace[f1, f2];
-				overlappingWithExisting = True;
-			];
-		];
-		If[overlappingWithExisting == False,
-			AppendTo[f1s, f2];
-		];
-	];
-	f1s
-];
-
 faceCenter = topVertex/HInner[topVertex, topVertex]*HInner[topVertex, verticesInVf[[1]]];
 reconstructFaces = {{{faceCenter}, verticesInVf}};
 
@@ -562,26 +587,6 @@ Print[Length[reconstructFaces]];
 faceLengths = Map[Length[#[[2]]]&, reconstructFaces];
 Print[Tally[faceLengths]];
 
-limitFace[f_, zRange_] := Module[
-	{orderedFace, vfCenter, vertices},
-	orderedFace = orderFace[f];
-	vfCenter = orderedFace[[1]];
-	vertices = orderedFace[[2]];
-
-	inRangeVertices = Select[vertices, Abs[#[[1]]] < zRange& ];
-	edges = getEdgesFromFace[vertices];
-	For[eid=1,eid<=Length[edges],eid++,
-		edge = edges[[eid]];
-		If[ (Abs[edge[[1]][[1]]] - zRange) * (Abs[edge[[2]][[1]]] - zRange) < 0,
-			solutions = Solve[Abs[lambda edge[[1]][[1]] + (1 - lambda) edge[[2]][[1]]] == zRange && lambda > 0 && lambda < 1, {lambda}];
-			(* Print[Length[solutions]]; *)
-			newVertices = (lambda edge[[1]] + (1 - lambda) edge[[2]])/.solutions;
-			inRangeVertices = Join[inRangeVertices, newVertices];
-		];
-	];
-
-	{vfCenter, inRangeVertices }
-];
 
 Print["limit face"];
 reconstructFaces = Map[limitFace[#, range]&, reconstructFaces];
@@ -591,10 +596,55 @@ reconstructFaces = Map[orderFace, reconstructFaces];
 Print[Length[reconstructFaces]];
 (* Print[reconstructFaces]; *)
 
+If[showHyperboloid, 
+	reconstructFaces = reconstructFaces[[{5}]];
+	faceCenter1 = reconstructFaces[[1]][[1]][[1]];
+];
 
 graph = plotShape3D[reconstructFaces];
 
-outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> "great_heptagons_vfch_" <> IntegerString[truncateThreshold] <> ".png";
+If[showHyperboloid, 
+	plotPoints = 20;
+	maxRecursion = 2;
+
+	hyperboloidGraphSide1 = ContourPlot3D[
+		x^2 - y^2 - z^2 == topVertexNorm^2,
+		{x, -range, range}, 
+		{y, -1.1 range, 1.1 range}, 
+		{z, -1.1 range, 1.1 range},
+		Axes -> None,
+		BoundaryStyle -> None,
+		MaxRecursion -> maxRecursion,
+		PlotPoints -> plotPoints,
+		MeshFunctions -> {0 &}, 
+		Boxed -> False,
+		MeshShading -> { { Lighter[Yellow] , Opacity[0.7] } },
+		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] < 1.1 HInner[faceCenter1, faceCenter1]],
+		RegionBoundaryStyle -> None
+	];
+
+	hyperboloidGraphSide2 = ContourPlot3D[
+		x^2 - y^2 - z^2 == topVertexNorm^2,
+		{x, -range, range}, 
+		{y, -1.1 range, 1.1 range}, 
+		{z, -1.1 range, 1.1 range},
+		Axes -> None,
+		BoundaryStyle -> None,
+		MaxRecursion -> maxRecursion,
+		PlotPoints -> plotPoints,
+		MeshFunctions -> {0 &}, 
+		Boxed -> False,
+		MeshShading -> { { Lighter[Yellow] , Opacity[0.2] } },
+		RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] > 0.9 HInner[faceCenter1, faceCenter1]],
+		RegionBoundaryStyle -> None
+	];
+
+	graph = Show[graph, hyperboloidGraphSide1, hyperboloidGraphSide2]
+	(* graph = hyperboloidGraph *)
+];
+
+
+outputFileName = If[vertexFigure, "vertexFigure_", ""] <> If[vertexFigureTopology, "topology_", ""] <> If[edgeTopology, "edge_topology_", ""] <> If[highlightCommonFaces, "highlightCommonFaces_", ""] <> If[viewAngle == "", "", viewAngle <> "_"] <> If[plotFaces, "f", ""] <> If[plotEdges, "e", ""] <> If[plotVertices, "v", ""] <> If[plotFaces || plotEdges || plotVertices, "_", ""] <> If[showHyperboloid, "hyperboloid_", ""] <> "great_heptagons_vfch_" <> IntegerString[truncateThreshold] <> ".png";
 
 (* imageSize = {4, 3}/3 * 720; *)
 imageSize = {4, 3}/3 * 1080;
