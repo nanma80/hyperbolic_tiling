@@ -349,7 +349,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 			MeshFunctions -> {0 &}, 
 			Boxed -> False,
 			MeshShading -> { { Lighter[Yellow] , Opacity[ If[1.5 - 2 progressInLevel > 1, 1, If[1.5 - 2 progressInLevel < 0, 0, 1.5 - 2 progressInLevel]] ] } },
-			RegionBoundaryStyle -> None,
+			(* RegionBoundaryStyle -> None, *)
 			RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] < 1 HInner[faceCenter1, faceCenter1]]
 		];
 
@@ -365,7 +365,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 			MeshFunctions -> {0 &}, 
 			Boxed -> False,
 			MeshShading -> { { Lighter[Yellow] , Opacity[If[2 - 2 progressInLevel > 1, 1, If[2 - 2 progressInLevel < 0, 0, 2 - 2 progressInLevel]]] } },
-			RegionBoundaryStyle -> None,
+			(* RegionBoundaryStyle -> None, *)
 			RegionFunction -> Function[{x, y, z}, HInner[faceCenter1, {x,y,z}] > 1 HInner[faceCenter1, faceCenter1]]
 		];
 
@@ -381,7 +381,7 @@ exportFrame[faces_, heightLevel_, progressInLevel_, frameIndex_, outputFolderNam
 			MeshFunctions -> {0 &}, 
 			Boxed -> False,
 			MeshShading -> { { Lighter[Orange] , Opacity[Min[ progressInLevel*2,2-2*progressInLevel ]]  } },
-			RegionBoundaryStyle -> None,
+			(* RegionBoundaryStyle -> None, *)
 			RegionFunction -> Function[{x, y, z}, x^2 - y^2 - z^2 > topVertexNorm^2 ]
 		];
 
