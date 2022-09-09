@@ -11,18 +11,18 @@ edgeTopology = False;
 showHyperboloid = False;
 
 exportToPov = True;
-plotVertices = True;
-plotFaces = True;
-plotEdges = True;
+(* plotVertices = True; *)
+(* plotFaces = True; *)
+(* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-(* vertexFigure = True; *)
+vertexFigure = True;
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
-showHyperboloid = True;
+(* showHyperboloid = True; *)
 
 (* viewAngle = "top"; *)
-(* viewAngle = "side"; *)
-viewAngle = "";
+viewAngle = "side";
+(* viewAngle = ""; *)
 
 (* 
 3: 14 faces
@@ -30,11 +30,11 @@ viewAngle = "";
 6: 42 faces
 18: 112 faces
  *)
-truncateThreshold = 3;
+(* truncateThreshold = 3; *)
 (* truncateThreshold = 4; *)
 (* truncateThreshold = 6; *)
 (* truncateThreshold = 8; *)
-(* truncateThreshold = 18; *)
+truncateThreshold = 18;
 (* truncateThreshold = 28; *)
 (* truncateThreshold = 38; *)
 (* truncateThreshold = 58; *)
@@ -57,7 +57,7 @@ stellationLevel = 3;
 ratio = Tan[stellationLevel Pi/7]/Tan[Pi/7];
 rangeZoom = stellationLevel * 1.5;
 lighting = {{"Point", White, {50, -50, 50}}};
-range = If[viewAngle == "side", 0.8, 4.5] * rangeZoom;
+range = If[viewAngle == "side", 3, 4.5] * rangeZoom;
 
 splitEdgeParts = 8;
 dataFolder = "data";
@@ -328,7 +328,7 @@ plotShape3D[faces_] := Module[
 	];
 
 	thickness = range / 80.0 / rangeZoom;
-	viewCenter = {0, 0, 0};
+	viewCenter = If[viewAngle == "side", {topVertex[[1]], 0, 0}, {0, 0, 0}];
 
 	elements = {};
 	If[plotVertices,
