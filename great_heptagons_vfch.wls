@@ -12,17 +12,17 @@ showHyperboloid = False;
 
 exportToPov = True;
 (* plotVertices = True; *)
-(* plotFaces = True; *)
+plotFaces = True;
 (* plotEdges = True; *)
 (* highlightCommonFaces = True; *)
-vertexFigure = True;
+(* vertexFigure = True; *)
 (* vertexFigureTopology = True; *)
 (* edgeTopology = True; *)
 (* showHyperboloid = True; *)
 
 (* viewAngle = "top"; *)
-viewAngle = "side";
-(* viewAngle = ""; *)
+(* viewAngle = "side"; *)
+viewAngle = "";
 
 (* 
 3: 14 faces
@@ -600,6 +600,54 @@ If[showHyperboloid,
 	reconstructFaces = reconstructFaces[[{5}]];
 	faceCenter1 = reconstructFaces[[1]][[1]][[1]];
 ];
+
+Print["surface count to analyze height and distance"];
+Print[reconstructFaces//Length];
+
+(* heights = Map[RoundEpsilon[#[[1]][[1]][[1]] ]&, reconstructFaces];
+heightsTally = Tally[heights];
+Print["heightsTally"];
+Print[heightsTally];
+ *)
+
+(* distanceHeightTuples = {};
+
+For[fid=1,fid<=Length[reconstructFaces],fid++,
+	face1=reconstructFaces[[fid]];
+	vertices1=face1[[2]];
+	If[Length[vertices1]>=3,
+		v1=vertices1[[2]]-vertices1[[1]];
+		v2=vertices1[[3]]-vertices1[[1]];
+		area=Norm[Cross[v1,v2]]/2;
+		(* Print[area]; *)
+		volume = Dot[vertices1[[1]].Cross[vertices1[[2]], vertices1[[3]]]]/6;
+		(* Print[volume]; *)
+		distance = 3 Abs[volume/area];
+		height = face1[[1]][[1]][[1]];
+		AppendTo[distanceHeightTuples, RoundEpsilon[{distance, height}]];
+	];
+];
+
+tupleTally = Sort[Tally[distanceHeightTuples]];
+Map[Print,tupleTally];
+ *)
+(* 
+
+{{0.19793448, -13.03691923}, 14}
+{{0.19793448, 13.03691923}, 14}
+{{0.24177078000000002, -10.64477401}, 7}
+{{0.24177078000000002, 10.64477401}, 7}
+{{0.29378006, -8.726422490000001}, 14}
+{{0.29378006, 8.726422490000001}, 14}
+{{0.56167173, -4.41592575}, 7}
+{{0.56167173, 4.41592575}, 7}
+{{0.71772676, -3.35132098}, 7}
+{{0.71772676, 3.35132098}, 7}
+{{1.56317112, -0.95917576}, 7}
+{{1.56317112, 0.95917576}, 7}
+
+ *)
+
 
 graph = plotShape3D[reconstructFaces];
 
