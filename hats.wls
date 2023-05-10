@@ -1,6 +1,6 @@
 #!/usr/bin/env wolframscript
 
-nGenerations = 6;
+nGenerations = 2;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -8,7 +8,8 @@ If[Length[argv] >= 2,
 	p = 6; q = 4; (* default *)
 ];
 
-seedTheta = Pi/12;
+frameCount = 10;
+seedTheta = Pi/12 * 1.0;
 
 shape = "hat";
 dataFolder = "data";
@@ -42,6 +43,8 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 
+getThickness[originalThickness_, v3d_] := originalThickness * Sqrt[( 1 - Norm[v3d[[{2, 3} ]]] )];
+
 Boost[t_] :=
 {
   {Cosh[t], Sinh[t], 0},
@@ -51,53 +54,34 @@ Boost[t_] :=
 
 generateFaces[p_, q_] := Module[
 	{},
-(* 
-	(* chi: p0 and p2 *)
-	inner02 = Cot[Pi/p]*Cot[Pi/q];
-	(* psi: p1 and p2 *)
-	inner12 = Cos[Pi/q]/Sin[Pi/p];
-	(* phi: p0 and p1 *)
-	inner01 = Cos[Pi/p]/Sin[Pi/q];
-
-	ch2psi = 2 * inner12 ^ 2 - 1;
-
-	p2 = {1, 0, 0};
-	p0 = {inner02, Sqrt[inner02^2-1], 0}//Simplify;
-	p1 = {inner12, Sqrt[inner12^2-1] Cos[Pi/p], Sqrt[inner12^2-1] Sin[Pi/p]}//Simplify;
-	(* other p2 such that the midpoint of p2 and otherp2 is p1 *)
-	otherp2 = {ch2psi, Sqrt[ch2psi^2-1] Cos[Pi/p], Sqrt[ch2psi^2-1] Sin[Pi/p]};
-
-	vertex1 = p0;
-	mirror1 = {0, 0, 1};
-	mirror2 = {0, -Sin[Pi/p], Cos[Pi/p]};
-	mirror3 = otherp2 - p2//Simplify;
-
-	mirrors = {mirror1, mirror2, mirror3}//N;
- *)
-	(* new mirrors for hats tiling *)
 
 	mirror1 = {0, 0, 1};
-	mirror2old = {0, 1/2, Sqrt[3]/2};
 	mirror2 = {0, -Sqrt[3]/2, 1/2};
 
-	mirror3 = {Sqrt[rho ^ 2 + 1] - 1, rho, 0};
-	mirror3 = mirror3 / HNorm[mirror3] * I;
-
-	solutionRho = Solve[HInner[mirror3, mirror2old] == -Sqrt[2]/2, rho][[1]];
-	mirror3 = mirror3/.solutionRho;
-	(* Print[mirror3]; *)
-	(* {1, Sqrt[2], 0} *)
-
+	mirror3 = {Sqrt[rho3 ^ 2 + 1] - 1, rho3, 0};
+	mirror4 = {Sqrt[rho4 ^ 2 + 1] - 1, rho4/2, rho4/2 * Sqrt[3]};
 	vertex1 = {Sqrt[r ^ 2 + 1], r Cos[seedTheta], r Sin[seedTheta]};
 
-	solutionR = Solve[ HReflect[vertex1, mirror3] == vertex1, r][[1]];
-	vertex1 = Simplify[vertex1/.solutionR] ;
+	solutions = NSolve[ 
+		HReflect[vertex1, mirror3] == vertex1 
+		&& HReflect[vertex1, mirror4] == vertex1 
+		&& HInner[mirror3, mirror4] == 0 
+		&& r > 0 && rho3 > 0 && rho4 > 0, {r, rho3, rho4}];
 
-	mirrors = { mirror1, mirror2, mirror3 }//N;
+	solution = solutions[[1]];
 
-(* 	Print[mirrors];
-	Print[vertex1];
- *)
+	mirror3 = mirror3/.solution;
+	mirror4 = mirror4/.solution;
+	vertex1 = vertex1/.solution;
+
+	mirrors = { mirror1, mirror2, mirror3, mirror4 }//N;
+
+	rotations = {
+		mirrors[[ {1, 2} ]],
+		mirrors[[ {2, 4} ]],
+		mirrors[[ {1, 3} ]],
+		mirrors[[ {2, 4} ]]
+	};
 
 	face1 = {vertex1}//N;
 	finished = False;
@@ -114,30 +98,65 @@ generateFaces[p_, q_] := Module[
 	args = Map[Arg[#[[2]] + #[[3]] I] &, face1];
 	face1 = face1[[Ordering[args]]];
 
-	Print["Each face contains " <> IntegerString[Length[face1]] <> " vertices."];
+	(* construct hat *)
+	origin = {1, 0, 0};
+	mid34 = HNormalize[face1[[3]] + face1[[4]], 1];
+	mid23 = HNormalize[face1[[2]] + face1[[3]], 1];
+	mid45 = HNormalize[face1[[4]] + face1[[5]], 1];
+	mid445 = HNormalize[face1[[4]] + mid45, 1];
+	mid323 = HNormalize[face1[[3]] + mid23, 1];
+	mid223 = HNormalize[face1[[2]] + mid23, 1];
+	mid445323 = HNormalize[mid445 + mid323, 1];
+	triangleCenter = HNormalize[origin + mid323 + mid445, 1];
 
-	faces = {face1};
+	mid34Right = HDoubleReflect[ mid34, mirror4, mirror1];
+	mid445323Right = HDoubleReflect[ mid445323, mirror4, mirror1];
+
+	mid445o = HNormalize[mid445 + origin , 1];
+	mid223o = HNormalize[mid223 + origin , 1];
+
+	point45o = HNormalize[ ratio * mid45 + (1 - ratio) * origin, 1 ];
+	solutionRatio = NSolve[ HInner[point45o, origin] == HInner[triangleCenter, origin] && ratio > 0 && ratio < 1, ratio ][[1]];
+	point45o = point45o/.solutionRatio;
+	point23o = HNormalize[ ratio * mid23 + (1 - ratio) * origin, 1 ]/.solutionRatio;
+
+(* 	Print[ HInner[triangleCenter, origin] ];
+	Print[ HInner[triangleCenter, mid323] ];
+	Print[ HInner[triangleCenter, mid445] ];
+ *)
+	hat = {
+		origin, mid223o, point23o, mid23, mid323, mid445323Right, mid34Right, mid34, mid445323, mid445, mid45, point45o, mid445o
+	};	
+	hat = Map[HNormalize[#, 1]&, hat];
+
+	Print["Each face contains " <> IntegerString[Length[face1]] <> " vertices."];
+	Print["Each hat contains " <> IntegerString[Length[hat]] <> " vertices."];
+
+	origin2 = HDoubleReflect[HReflect[origin, mirror4], mirror1, mirror2];
+	Print[origin2];
+	maxPanning = ArcCosh[ origin2[[1]] ];
+	Print[maxPanning];
+
+	faces = {hat};
 	countStart = -1;
 	For[i = 1, i <= nGenerations && countStart != Length[faces], i++,
 		Print["i = " <> IntegerString[i]];
 		countStart = Length[faces];
-		For[mirrorIndex = 3, mirrorIndex >= 1, mirrorIndex--,
-			newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, faces, {2}];
+		For[rid = Length[rotations], rid >= 1, rid--,
+			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
 		];
 	];
 
 	Print["Making it more symmetric"];
 
-	(* Making it symmetric *)
-	centeredMirrors = Select[mirrors, #[[1]] == 0 &];
-
 	countStart = -1;
 	For[i = 0, i < 20 && countStart != Length[faces], i++,
 		Print["i = " <> IntegerString[i]];
 		countStart = Length[faces];
-		For[mirrorIndex = Length[centeredMirrors], mirrorIndex >= 1, mirrorIndex--,
-			newFaces = Map[HReflect[#, centeredMirrors[[mirrorIndex]] ]&, faces, {2}];
+		For[rid = 1, rid >= 1, rid--,
+			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
+			(* newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, faces, {2}]; *)
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
 		];
 	];
@@ -148,12 +167,12 @@ generateFaces[p_, q_] := Module[
 plotShape3D[shape_, faces_, panning_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	color = Blue;
-	pannedFaces = Map[Boost[panning].# &, faces, {2}];
+	pannedFaces = Map[Rotation[Pi/3 * panning].Boost[panning * maxPanning].# &, faces, {2}];
 	displayFaces = Map[getPoincare, pannedFaces, {2}];
 
 	Print["There are " <> IntegerString[Length[displayFaces]] <> " faces."];
 
-	edges = Flatten[Map[getEdgesFromFace, faces], 1];
+	edges = Flatten[Map[getEdgesFromFace, pannedFaces], 1];
 	Print["There are " <> IntegerString[Length[edges]] <> " edges before split."];
 
 	norm = HNorm[edges[[1]][[1]]];
@@ -166,20 +185,17 @@ plotShape3D[shape_, faces_, panning_] := Module[
 	vertices = Flatten[displayFaces,1];
 	Print["There are " <> IntegerString[Length[vertices]] <> " vertices in total."];
 
-	thickness = 0.006;
+	thickness = 0.008;
 	lighting = {{"Point", White, {10, -10, 10}}};
 	range = 0.8;
 
 	graph = Graphics3D[
 		{
-(* 			{
-				Opacity[0.8], FaceForm[color], Map[Polygon, displayFaces]
-			}, *)
  			{
-				Opacity[1], FaceForm[White], Map[Cylinder[#, thickness]&, displayEdges]
+				Opacity[1], FaceForm[White], Map[Cylinder[#, getThickness[thickness, Mean[#]] ]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[White], Map[Sphere[#, thickness * 2]&, vertices]
+				Opacity[1], FaceForm[White], Map[Sphere[#, getThickness[thickness, #] * 2 ]&, vertices]
 			}
 		},
 		ViewPoint -> {100, 0, 0},
@@ -203,7 +219,6 @@ exportFrame[faces_, panning_, frameIndex_] := Module[
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
 	imageSize = {4, 3} * 720/4;
 
-
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
 	If[exportToPov,
@@ -215,23 +230,66 @@ exportFrame[faces_, panning_, frameIndex_] := Module[
 	];
 ];
 
+exportAnimation[] := Module[
+	{
+		outputFolder,
+		gifFileName,
+		gifFolder,
+		maxExplosionFactor,
+		explodeStep,
+		explosionFactors,
+		frameIndex,
+		explosionFactor,
+		gifCommand
+	},
 
-Print["Shape: " <> shape];
+	outputFolder = shape <> "_panning_frames";
+	outputFolder = FileNameJoin[{imageFolder, outputFolder}];
+	If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
+
+	gifFileName = shape <> "_panning";
+	gifFolder = FileNameJoin[{imageFolder, shape}];
+	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
+
+	Print["Shape: " <> shape];
+	faces = generateFaces[p, q];
+	Print["There are " <> IntegerString[Length[faces]] <> " faces."];
+
+	For[frameIndex = 1, frameIndex <= frameCount, frameIndex++,
+		Print[DateString["ISODateTime"] <> " frameIndex/frameCount: " <> IntegerString[frameIndex] <> " / " <> IntegerString[frameCount] ];
+		exportFrame[faces, frameIndex/frameCount*1.0, frameIndex];
+	];
+
+	delay = If[frameCount >= 40, 3, Floor[300/frameCount]];
+
+	gifCommand = "magick convert -quiet +repage -alpha remove -loop 0 -delay " <> IntegerString[delay] <> " -dispose 2 " <> outputFolder <> "\\panning_frame*.png " <> gifFolder <> "\\" <> gifFileName <> ".gif";
+
+	Print[gifCommand];
+	Run[gifCommand];
+	Print["Saved the animation to " <> gifFolder <> "\\" <> gifFileName <> ".gif"];
+	
+  mp4Command = "ffmpeg -i " <> gifFolder <> "\\" <> gifFileName <> ".gif" 
+      (* <> " -movflags faststart -pix_fmt yuv420p -vf \"scale=trunc(iw/2)*2:trunc(ih/2)*2\" " *)
+      <> " -movflags faststart -pix_fmt yuv420p "
+      <> gifFolder <> "\\" <> gifFileName <> ".mp4";
+
+  mp4FileName = gifFolder <> "\\" <> gifFileName <> ".mp4";
+  If[FileExistsQ[mp4FileName], DeleteFile[mp4FileName]];
+  Print[mp4Command];
+  Run[mp4Command];
+  Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];	
+];
+
+(* Print["Shape: " <> shape];
 faces = generateFaces[p, q];
 Print["There are " <> IntegerString[Length[faces]] <> " faces."];
-
-exportFrame[faces, 0, 1];
-
-
-(* dataFileName = FileNameJoin[{dataFolder, shape <> ".wl"}];
-jsonDataFileName = FileNameJoin[{dataFolder, shape <> ".json"}];
-
-If[FileExistsQ[dataFileName], DeleteFile[dataFileName]];
-Save[dataFileName, faces];
-Print["Saved faces to " <> dataFileName];
-
-If[FileExistsQ[jsonDataFileName], DeleteFile[jsonDataFileName]];
-Export[jsonDataFileName, faces, "RawJSON", Compact -> True];
-Print["Saved faces to " <> jsonDataFileName];
  *)
+exportAnimation[];
+
+(* For[fid = 0, fid <= 10, fid++,
+	exportFrame[faces, fid/10, fid];
+];
+ *)
+(* exportFrame[faces, 0, 1]; *)
+(* exportFrame[faces, 1, 2]; *)
 
