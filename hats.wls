@@ -1,12 +1,14 @@
 #!/usr/bin/env wolframscript
 
-nGenerations = 3;
+nGenerations = 6;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
 	p = ToExpression[argv[[1]]]; q = ToExpression[argv[[2]]],
 	p = 6; q = 4; (* default *)
 ];
+
+seedTheta = Pi/12;
 
 shape = "hat";
 dataFolder = "data";
@@ -49,7 +51,7 @@ Boost[t_] :=
 
 generateFaces[p_, q_] := Module[
 	{},
-
+(* 
 	(* chi: p0 and p2 *)
 	inner02 = Cot[Pi/p]*Cot[Pi/q];
 	(* psi: p1 and p2 *)
@@ -71,22 +73,52 @@ generateFaces[p_, q_] := Module[
 	mirror3 = otherp2 - p2//Simplify;
 
 	mirrors = {mirror1, mirror2, mirror3}//N;
+ *)
+	(* new mirrors for hats tiling *)
+
+	mirror1 = {0, 0, 1};
+	mirror2old = {0, 1/2, Sqrt[3]/2};
+	mirror2 = {0, -Sqrt[3]/2, 1/2};
+
+	mirror3 = {Sqrt[rho ^ 2 + 1] - 1, rho, 0};
+	mirror3 = mirror3 / HNorm[mirror3] * I;
+
+	solutionRho = Solve[HInner[mirror3, mirror2old] == -Sqrt[2]/2, rho][[1]];
+	mirror3 = mirror3/.solutionRho;
+	(* Print[mirror3]; *)
+	(* {1, Sqrt[2], 0} *)
+
+	vertex1 = {Sqrt[r ^ 2 + 1], r Cos[seedTheta], r Sin[seedTheta]};
+
+	solutionR = Solve[ HReflect[vertex1, mirror3] == vertex1, r][[1]];
+	vertex1 = Simplify[vertex1/.solutionR] ;
+
+	mirrors = { mirror1, mirror2, mirror3 }//N;
+
+(* 	Print[mirrors];
+	Print[vertex1];
+ *)
 
 	face1 = {vertex1}//N;
 	finished = False;
 	For[i = 0, i < 20 && finished == False, i++,
-		newVertex = FullSimplify[HDoubleReflect[face1[[-1]], mirrors[[1]], mirrors[[2]]]];
-		If[!(ApproxSamePoint[newVertex, face1[[1]]]),
-			AppendTo[face1, newVertex],
-			finished = True;
-		]
+		For[mirrorIndex = 2, mirrorIndex >= 1, mirrorIndex--,
+			newVertex = FullSimplify[HReflect[face1[[-1]], mirrors[[mirrorIndex]] ]];
+			If[!(ApproxSamePoint[newVertex, face1[[1]]]),
+				AppendTo[face1, newVertex],
+				finished = True;
+			];
+		];
 	];
+
+	args = Map[Arg[#[[2]] + #[[3]] I] &, face1];
+	face1 = face1[[Ordering[args]]];
 
 	Print["Each face contains " <> IntegerString[Length[face1]] <> " vertices."];
 
 	faces = {face1};
 	countStart = -1;
-	For[i = 0, i <= nGenerations && countStart != Length[faces], i++,
+	For[i = 1, i <= nGenerations && countStart != Length[faces], i++,
 		Print["i = " <> IntegerString[i]];
 		countStart = Length[faces];
 		For[mirrorIndex = 3, mirrorIndex >= 1, mirrorIndex--,
