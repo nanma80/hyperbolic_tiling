@@ -1,6 +1,6 @@
 #!/usr/bin/env wolframscript
 
-nGenerations = 2;
+nGenerations = 5;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -8,7 +8,8 @@ If[Length[argv] >= 2,
 	p = 6; q = 4; (* default *)
 ];
 
-frameCount = 10;
+frameCount = 200;
+
 seedTheta = Pi/12 * 1.0;
 
 shape = "hat";
@@ -156,7 +157,6 @@ generateFaces[p_, q_] := Module[
 		countStart = Length[faces];
 		For[rid = 1, rid >= 1, rid--,
 			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
-			(* newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, faces, {2}]; *)
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
 		];
 	];
@@ -217,7 +217,7 @@ exportFrame[faces_, panning_, frameIndex_] := Module[
 
 	outputFileName = "panning_frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-	imageSize = {4, 3} * 720/4;
+	imageSize = {4, 3} * 720/3;
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
