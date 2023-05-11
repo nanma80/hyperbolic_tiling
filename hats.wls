@@ -1,6 +1,6 @@
 #!/usr/bin/env wolframscript
 
-nGenerations = 5;
+faceHeightThreshold = 80;
 
 argv = Rest @ $ScriptCommandLine;
 If[Length[argv] >= 2, 
@@ -9,15 +9,21 @@ If[Length[argv] >= 2,
 ];
 
 frameCount = 200;
+(* frameCount = 5; *)
+
+color = White;
+diskColor = Blue;
 
 seedTheta = Pi/12 * 1.0;
-
+imageSize = {4, 3} * 720/3;
 shape = "hat";
 dataFolder = "data";
 imageFolder = "images";
 epsilon = 0.00000001;
 exportToPov = True;
 splitEdgeParts = 8;
+nGenerations = 30;
+shapeWithParams = shape <> "_" <> IntegerString[faceHeightThreshold] <> "_" <> IntegerString[frameCount];
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
@@ -27,7 +33,7 @@ HNormSquare[v_] := HInner[v, v];
 HNorm[v_] := Sqrt[HNormSquare[v]];
 Rotation[t_] :=
 {
-  {1,  0, 0},
+  {1, 0, 0},
   {0, Cos[t], Sin[t]},
   {0, -Sin[t], Cos[t]}
 };
@@ -44,7 +50,7 @@ getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
 HNormalize[v_, norm_] := v/HNorm[v] * norm;
 
-getThickness[originalThickness_, v3d_] := originalThickness * Sqrt[( 1 - Norm[v3d[[{2, 3} ]]] )];
+getThickness[originalThickness_, v3d_] := originalThickness * ( 1 - Norm[v3d[[{2, 3} ]]] )^0.3;
 
 Boost[t_] :=
 {
@@ -79,7 +85,6 @@ generateFaces[p_, q_] := Module[
 
 	rotations = {
 		mirrors[[ {1, 2} ]],
-		mirrors[[ {2, 4} ]],
 		mirrors[[ {1, 3} ]],
 		mirrors[[ {2, 4} ]]
 	};
@@ -141,11 +146,12 @@ generateFaces[p_, q_] := Module[
 	faces = {hat};
 	countStart = -1;
 	For[i = 1, i <= nGenerations && countStart != Length[faces], i++,
-		Print["i = " <> IntegerString[i]];
+		Print[DateString["ISODateTime"] <> " i = " <> IntegerString[i] <> " face count: " <> IntegerString[Length[faces]]];
 		countStart = Length[faces];
 		For[rid = Length[rotations], rid >= 1, rid--,
 			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
+			faces = Select[faces, Mean[#][[1]] < faceHeightThreshold &];
 		];
 	];
 
@@ -153,20 +159,25 @@ generateFaces[p_, q_] := Module[
 
 	countStart = -1;
 	For[i = 0, i < 20 && countStart != Length[faces], i++,
-		Print["i = " <> IntegerString[i]];
+		Print[DateString["ISODateTime"] <> " i = " <> IntegerString[i] <> " face count: " <> IntegerString[Length[faces]]];
 		countStart = Length[faces];
 		For[rid = 1, rid >= 1, rid--,
 			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
+			faces = Select[faces, Mean[#][[1]] < faceHeightThreshold &];
 		];
 	];
+
+	newFaces = Map[HDoubleReflect[#, rotations[[3]][[1]], rotations[[3]][[2]]]&, faces, {2}];
+	newFaces = Map[HDoubleReflect[#, rotations[[1]][[1]], rotations[[1]][[2]]]&, newFaces, {2}];
+	faces = Union[faces, newFaces, SameTest -> sameCenter];
+
 	faces
 ];
 
 
 plotShape3D[shape_, faces_, panning_] := Module[
 	{allEdges, edges, allVertices, vertices},
-	color = Blue;
 	pannedFaces = Map[Rotation[Pi/3 * panning].Boost[panning * maxPanning].# &, faces, {2}];
 	displayFaces = Map[getPoincare, pannedFaces, {2}];
 
@@ -191,11 +202,14 @@ plotShape3D[shape_, faces_, panning_] := Module[
 
 	graph = Graphics3D[
 		{
+			{
+				Opacity[1], FaceForm[diskColor], Cylinder[{{-0.001, 0, 0}, {0, 0, 0}}, 1 - 0.01]
+			},
  			{
-				Opacity[1], FaceForm[White], Map[Cylinder[#, getThickness[thickness, Mean[#]] ]&, displayEdges]
+				Opacity[1], FaceForm[color], Map[Cylinder[#, getThickness[thickness, Mean[#]] ]&, displayEdges]
 			},
 			{
-				Opacity[1], FaceForm[White], Map[Sphere[#, getThickness[thickness, #] * 2 ]&, vertices]
+				Opacity[1], FaceForm[color], Map[Sphere[#, getThickness[thickness, #] * 2 ]&, vertices]
 			}
 		},
 		ViewPoint -> {100, 0, 0},
@@ -211,13 +225,12 @@ exportFrame[faces_, panning_, frameIndex_] := Module[
 
 	graph = plotShape3D[shape, faces, panning];
 
-	outputFolder = shape <> "_panning_frames";
+	outputFolder = shapeWithParams <> "_panning_frames";
 	outputFolder = FileNameJoin[{imageFolder, outputFolder}];
 	If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 
 	outputFileName = "panning_frame_" <> IntegerString[frameIndex, 10, 4] <> ".png";
 	outputFileName = FileNameJoin[{outputFolder, outputFileName}];
-	imageSize = {4, 3} * 720/3;
 
 	cropCommand = "mogrify -crop " <> IntegerString[imageSize[[2]]] <> "x" <> IntegerString[imageSize[[2]]] <> "+" <> IntegerString[(imageSize[[1]]-imageSize[[2]])/2] <> "+0 " <> outputFileName;
 
@@ -243,11 +256,11 @@ exportAnimation[] := Module[
 		gifCommand
 	},
 
-	outputFolder = shape <> "_panning_frames";
+	outputFolder = shapeWithParams <> "_panning_frames";
 	outputFolder = FileNameJoin[{imageFolder, outputFolder}];
 	If[!DirectoryQ[outputFolder], CreateDirectory[outputFolder]];
 
-	gifFileName = shape <> "_panning";
+	gifFileName = shapeWithParams;
 	gifFolder = FileNameJoin[{imageFolder, shape}];
 	If[!DirectoryQ[gifFolder], CreateDirectory[gifFolder]];
 
@@ -280,16 +293,19 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];	
 ];
 
-(* Print["Shape: " <> shape];
-faces = generateFaces[p, q];
-Print["There are " <> IntegerString[Length[faces]] <> " faces."];
- *)
 exportAnimation[];
 
 (* For[fid = 0, fid <= 10, fid++,
 	exportFrame[faces, fid/10, fid];
 ];
  *)
+
+(* Print["Shape: " <> shape];
+faces = generateFaces[p, q];
+Print["There are " <> IntegerString[Length[faces]] <> " faces."];
+ *)
+
 (* exportFrame[faces, 0, 1]; *)
-(* exportFrame[faces, 1, 2]; *)
+(* exportFrame[faces, 0.5, 2]; *)
+(* exportFrame[faces, 1, 3]; *)
 
