@@ -17,6 +17,7 @@ imageFolder = "images";
 epsilon = 0.00000001;
 exportToPov = True;
 splitEdgeParts = 8;
+colors = {Red, Blue, Green};
 
 Needs["POVRayRender`"];
 ConfigurePOVRayRender["POVRayPath" -> "C:\\Program Files\\POV-Ray\\v3.7\\bin\\pvengine64.exe"];
@@ -38,6 +39,7 @@ ApproxSamePoint[point1_, point2_] := Round[point1, epsilon] == Round[point2, eps
 
 getEdgesFromFace[face_] := Table[{face[[i+1]], face[[Mod[i+1, Length[face]] + 1]]}, {i, 0, Length[face] - 1}];
 sameCenter[set1_, set2_] := ApproxSamePoint[Total[N[set1]], Total[N[set2]]];
+sameCenterWithColor[set1_, set2_] := sameCenter[set1[[1]], set2[[1]]];
 getKlein[v_] := {0, v[[2]], v[[3]]}/v[[1]];
 getPoincare[v_] := {0, v[[2]], v[[3]]}/(1+v[[1]]);
 splitEdge[edge_, n_] := Table[{k edge[[1]] + (1-k) edge[[2]], (k+1/n) edge[[1]] + (1-k-1/n) edge[[2]] }, {k, 0, 1 - 1/n, 1/n}];
@@ -78,7 +80,7 @@ generateFaces[p_, q_] := Module[
 
 	rotations = {
 		mirrors[[ {1, 2} ]],
-		mirrors[[ {2, 4} ]],
+		(* mirrors[[ {2, 4} ]], *)
 		mirrors[[ {1, 3} ]],
 		mirrors[[ {2, 4} ]]
 	};
@@ -137,18 +139,46 @@ generateFaces[p_, q_] := Module[
 	maxPanning = ArcCosh[ origin2[[1]] ];
 	Print[maxPanning];
 
-	faces = {hat};
+	facesWithColors = { {hat, 0} };
+	
 	countStart = -1;
-	For[i = 1, i <= nGenerations && countStart != Length[faces], i++,
+	For[i = 1, i <= 10 && countStart != Length[facesWithColors], i++,
 		Print["i = " <> IntegerString[i]];
-		countStart = Length[faces];
+		countStart = Length[facesWithColors];
+		rid = 1;
+		newFaces = Map[
+			{
+				Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, #[[1]] ],
+				Mod[ #[[2]] + 1, 3]
+			}&,
+			facesWithColors
+		];
+		distinctNewFaces = Complement[newFaces, facesWithColors, SameTest -> sameCenterWithColor];
+		facesWithColors = Join[facesWithColors, distinctNewFaces];
+	];
+
+	countStart = -1;
+	For[i = 1, i <= nGenerations && countStart != Length[facesWithColors], i++,
+		Print["i = " <> IntegerString[i]];
+		countStart = Length[facesWithColors];
 		For[rid = Length[rotations], rid >= 1, rid--,
-			newFaces = Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, faces, {2}];
-			faces = Union[faces, newFaces, SameTest -> sameCenter];
+			newFaces = Map[
+				{
+					Map[HDoubleReflect[#, rotations[[rid]][[1]], rotations[[rid]][[2]]]&, #[[1]] ],
+					Mod[ #[[2]] + If[rid == 1, 1, 0], 3]
+				}&, 
+				facesWithColors
+			];
+			distinctNewFaces = Complement[newFaces, facesWithColors, SameTest -> sameCenterWithColor];
+			facesWithColors = Join[facesWithColors, distinctNewFaces];
+
+			(* faces = Union[faces, newFaces, SameTest -> sameCenter]; *)
 		];
 	];
 
-	Print["Making it more symmetric"];
+	Print[facesWithColors//Length];
+
+(* 	Print["Making it more symmetric"];
 
 	countStart = -1;
 	For[i = 0, i < 20 && countStart != Length[faces], i++,
@@ -159,14 +189,19 @@ generateFaces[p_, q_] := Module[
 			(* newFaces = Map[HReflect[#, mirrors[[mirrorIndex]] ]&, faces, {2}]; *)
 			faces = Union[faces, newFaces, SameTest -> sameCenter];
 		];
-	];
-	faces
+	]; *)
+	(* faces *)
+
+	facesWithColors
 ];
 
 
-plotShape3D[shape_, faces_, panning_] := Module[
+plotShape3D[shape_, facesWithColors_, panning_] := Module[
 	{allEdges, edges, allVertices, vertices},
 	color = Blue;
+	faces = Map[First, facesWithColors];
+	colorsByFaces = Map[ colors[[#[[2]] + 1]]&, facesWithColors];
+
 	pannedFaces = Map[Rotation[Pi/3 * panning].Boost[panning * maxPanning].# &, faces, {2}];
 	displayFaces = Map[getPoincare, pannedFaces, {2}];
 
@@ -191,6 +226,11 @@ plotShape3D[shape_, faces_, panning_] := Module[
 
 	graph = Graphics3D[
 		{
+			Table[
+				{
+					FaceForm[colorsByFaces[[k]]], Polygon[displayFaces[[k]]]
+				}
+			, {k, Length[displayFaces]}],
  			{
 				Opacity[1], FaceForm[White], Map[Cylinder[#, getThickness[thickness, Mean[#]] ]&, displayEdges]
 			},
@@ -280,16 +320,16 @@ exportAnimation[] := Module[
   Print["Saved the video to " <> gifFolder <> "\\" <> gifFileName <> ".mp4"];	
 ];
 
-(* Print["Shape: " <> shape];
+Print["Shape: " <> shape];
 faces = generateFaces[p, q];
 Print["There are " <> IntegerString[Length[faces]] <> " faces."];
- *)
-exportAnimation[];
+
+(* exportAnimation[]; *)
 
 (* For[fid = 0, fid <= 10, fid++,
 	exportFrame[faces, fid/10, fid];
 ];
  *)
-(* exportFrame[faces, 0, 1]; *)
+exportFrame[faces, 0, 1];
 (* exportFrame[faces, 1, 2]; *)
 
