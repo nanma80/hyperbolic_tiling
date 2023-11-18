@@ -8,7 +8,10 @@ maxRecursion = 2;
 sphere = False;
 doubleSheet = False;
 If[sphere, doubleSheet = True];
-mirror3Generation = 2;
+mirror3Generation = 8;
+(* timelikeMirror = False; *)
+timelikeMirror = True;
+timeThreshold = 11;
 
 splitEdgeParts = 8;
 
@@ -53,6 +56,10 @@ mirrors = {
 	{Sqrt[3]/2, Sqrt[3/4 + rsquare], 0}
 };
 
+If[timelikeMirror,
+	mirrors = {{3.6258450075213284, 0.4009688679023937, -1.7567593946499347}, {8.147199778141172, -2.5244586697611533, -3.16557104594932}, {0., 1.4533639709447248, -3.017941382674057}};
+];
+
 allMirrors = mirrors[[{1, 2, 3}]];
 For[j = 1, j <= mirror3Generation, j++,
 	newMirrors3 = Map[HReflect[#, mirrors[[3]]]&, allMirrors];
@@ -61,24 +68,39 @@ For[j = 1, j <= mirror3Generation, j++,
 	(* allMirrors = updatedMirrors//Simplify; *)
 	allMirrors = updatedMirrors//N;
 
-	For[i = 1, i <= 7, i++,
+	For[i = 1, i <= 10, i++,
 		newMirrors1 = Map[HReflect[#, mirrors[[1]]]&, allMirrors];
 		newMirrors2 = Map[HReflect[#, mirrors[[2]]]&, allMirrors];
 		updatedMirrors = Union[allMirrors, newMirrors1, newMirrors2, SameTest -> (Round[HNormalize[#1, 1], epsilon] == Round[HNormalize[#2, 1], epsilon]&)];
 		Print[Map[Length, {allMirrors, newMirrors1, newMirrors2, updatedMirrors}]];
 		(* allMirrors = updatedMirrors//Simplify; *)
 		allMirrors = updatedMirrors//N;
+
+		(* Print["Before filtering i=" <> ToString[i] <> " j=" <> ToString[j]]; *)
+		(* Print[Length[allMirrors]]; *)
+		allMirrors = Select[allMirrors, Abs[#[[1]]] < timeThreshold &];
+		(* Print["After filtering i=" <> ToString[i] <> " j=" <> ToString[j]]; *)
+		(* Print[Length[allMirrors]]; *)
 	];
+
+	Print["Before filtering j=" <> ToString[j] ];
+	Print[Length[allMirrors]];
+	allMirrors = Select[allMirrors, Abs[#[[1]]] < timeThreshold &];
+	Print["After filtering j=" <> ToString[j]];
+	Print[Length[allMirrors]];
 ];
 
-allMirrors = Union[allMirrors, (-1)*allMirrors, SameTest -> (Round[HNormalize[#1, 1], epsilon] == Round[HNormalize[#2, 1], epsilon]&)];
-Print[Length[allMirrors]];
-arbitraryVector = {1, E Pi, E / Pi};
-allMirrors = Select[allMirrors, #.arbitraryVector >= 0 &];
+If[timelikeMirror == False,
+	allMirrors = Union[allMirrors, (-1)*allMirrors, SameTest -> (Round[HNormalize[#1, 1], epsilon] == Round[HNormalize[#2, 1], epsilon]&)];
+	Print[Length[allMirrors]];
+	arbitraryVector = {1, E Pi, E / Pi};
+	allMirrors = Select[allMirrors, #.arbitraryVector >= 0 &];
+];
+
 Print[Length[allMirrors]];
 
 
-plotRange = If[sphere, 1.1, 2];
+plotRange = If[sphere, 1.1, 2] * If[timelikeMirror, Sqrt[2] * 2, 1];
 opacity = 1;
 zOffset = If[sphere, 0, If[doubleSheet, -plotRange - 0.9, 0]];
 
@@ -86,7 +108,7 @@ graph = ContourPlot3D[
 	If[sphere, x^2 + y^2 + z^2, -x^2 - y^2 + z^2] == If[doubleSheet, 1, -1],
 	{x, -plotRange, plotRange}, 
 	{y, -plotRange, plotRange}, 
-	{z, -plotRange + zOffset, plotRange + zOffset},
+	{z, -plotRange/Sqrt[2] + zOffset, plotRange/Sqrt[2] + zOffset},
 	Axes -> None, 
 	BoundaryStyle -> Red, 
   PlotPoints -> plotPoints, 
@@ -101,8 +123,8 @@ graph = ContourPlot3D[
 ];
 Print["graph is defined"];
 
-outputFileName = If[sphere, "sphere_", If[doubleSheet, "double_", "single_"]] <> "fundamental_domain_" <> IntegerString[mirror3Generation] <> "_" <> IntegerString[plotPoints] <> "_" <> IntegerString[maxRecursion] <> ".png";
-imageSize = {600, 450};
+outputFileName = If[sphere, "sphere_", If[doubleSheet, "double_", "single_"]] <> "fundamental_domain_" <> IntegerString[mirror3Generation] <> "_" <> IntegerString[plotPoints] <> "_" <> IntegerString[maxRecursion] <> If[timelikeMirror, "_timelike_" <> ToString[timeThreshold], ""] <> ".png";
+imageSize = {4, 3} * 720 / 3;
 
 imageFolder = "images";
 outputFolder = FileNameJoin[{imageFolder, "domains"}];
