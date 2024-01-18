@@ -45,3 +45,10 @@ Print[Sqrt[2] px[u,v] - py[u,v]^2 + 1//FullSimplify];
 (1 + Cosh[u] - Cos[v] Sinh[u]) 
 *)
 
+Assuming[
+  { {xx, yy, u, v} \[Element] Reals, Sqrt[2] xx - yy^2 + 1 > 0},
+  Simplify[
+    Solve[px[u,v]==xx && py[u,v]==yy, {u,v}]
+  ]
+]
+
