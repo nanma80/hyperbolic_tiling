@@ -45,10 +45,15 @@ Print[Sqrt[2] px[u,v] - py[u,v]^2 + 1//FullSimplify];
 (1 + Cosh[u] - Cos[v] Sinh[u]) 
 *)
 
-Assuming[
-  { {xx, yy, u, v} \[Element] Reals, Sqrt[2] xx - yy^2 + 1 > 0},
-  Simplify[
-    Solve[px[u,v]==xx && py[u,v]==yy, {u,v}]
-  ]
-]
+solution = Solve[Sqrt[2] x/(t - x + 1) == px && y/(t - x + 1) == py && t^2-x^2-y^2==1, {x, y, t} ];
+Print[solution];
+
+(* 
+
+                                2                                                        2     2
+                 Sqrt[2] px + px          -2 py - Sqrt[2] px py       1 + Sqrt[2] px + px  + py
+Out[5]= {{x -> --------------------, y -> ---------------------, t -> --------------------------}}
+                                  2                           2                             2
+               1 + Sqrt[2] px - py        -1 - Sqrt[2] px + py           1 + Sqrt[2] px - py
+ *)
 
