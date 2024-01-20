@@ -1,0 +1,43 @@
+I've convinced myself that the parabola projection is indeed the interior of a parabola. Let me share the math here so that we don't lose it.
+
+Suppose a point on the hyperboloid model (x, y, z), satisfying z^2-x^2-y^2=1, z>0. To project it, I connect (x,y,z) to (0,0,-1), and construct its intersection with the plane x=z.
+The intersection is ( x/(z-x+1), y/(z-x+1), x/(z-x+1) ). 
+
+To look directly onto the plane x=z, let's change the coordinates to (px, py, pz): py = y, px = (x+z)/sqrt(2), pz = (x-z)/sqrt(2). This way, all points on the plane satisfy pz = 0, and px = sqrt(2) * x. We can throw away pz, and only consider the 2D plane (px, py). This is what I plotted in the email 2 days ago. I used the letter "p" to indicate this is the coordinate system for the parabola.
+
+Now, the projected point is (px, py) = ( sqrt(2) * x/(z-x+1), y/(z-x+1) ).
+
+I'm going to show that 
+
+(1) the 2D image of the hyperboloid (top sheet) is inside a parabola sqrt(2) px - py^2 + 1
+(2) for all points inside the parabola, the reverse image is on the top sheet of the hyperbola
+
+For (1) we need to show: 
+for all (x, y, z) on the hyperboloid z^2-x^2-y^2=1, z>0, the image (px, py) = ( sqrt(2) * x/(z-x+1), y/(z-x+1) ) satisfies sqrt(2) px - py^2 + 1 > 0
+
+sqrt(2) px - py^2 + 1
+= 2 x/(z-x+1) - y^2/(z-x+1)^2 + 1
+= ( (z+1)^2 - x^2 - y^2 )/(z-x+1)^2
+= 2 (t + 1)/(z-x+1)^2
+> 0
+
+In the last equality, I used the assumption that z^2-x^2-y^2=1.
+
+For (2) we need to show:
+for all (px, py) such that sqrt(2) px +1 - py^2 > 0 (inside a parabola), the reverse image is on the hyperbola z^2-x^2-y^2=1, z>0
+
+Assume px, py are given, solve the equations:
+
+px = sqrt(2) * x/(z-x+1)
+py = y/(z-x+1)
+z^2-x^2-y^2 = 1
+
+for unknowns x, y, z, we get (with the help of Mathematica):
+
+x = (Sqrt[2] px + px^2)/(sqrt(2) px +1 - py^2)
+y = (2 py + Sqrt[2] px py)/(sqrt(2) px +1 - py^2)
+z = 1 + (px^2 + 2 py^2)/(sqrt(2) px + 1 - py^2)
+
+With the assumption sqrt(2) px +1 - py^2 > 0, the denominators are all positive. Also, z >= 1 > 0, so the reverse image is indeed on the upper sheet of the hyperboloid.
+
+Combining (1) and (2), we know that the image of the top sheet of the hyperboloid is the interior of the parabola sqrt(2) px - py^2 + 1
